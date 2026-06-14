@@ -1,7 +1,6 @@
 // School Hub — role-based school app (student / leadership / admin).
-// Single-file Flutter app. Uses SharedPreferences for local persistence so
-// it runs offline without a backend. Swap the AppState data layer for a
-// real API (Firebase / REST) when wiring to production.
+// Visual language: neo-brutalist sticker book — hard 2px borders, chunky
+// offset shadows, vivid accents, big bold type. Light + dark themes.
 
 import 'dart:async';
 import 'dart:convert';
@@ -19,92 +18,196 @@ void main() async {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// THEME
+// BRAND + THEME
 // ─────────────────────────────────────────────────────────────────────────────
 
 class Brand {
-  static const primary = Color(0xFF1E40AF);
-  static const primaryLight = Color(0xFFDBEAFE);
-  static const accent = Color(0xFFF59E0B);
-  static const danger = Color(0xFFDC2626);
-  static const success = Color(0xFF059669);
-  static const bg = Color(0xFFF7F8FB);
-  static const card = Colors.white;
-  static const text = Color(0xFF0F172A);
-  static const muted = Color(0xFF64748B);
-  static const border = Color(0xFFE2E8F0);
+  // light tones
+  static const bg = Color(0xFFFAF8FF);
+  static const paper = Colors.white;
+  static const ink = Color(0xFF0F0B1F);
+  static const mute = Color(0xFF6B6786);
+  static const line = Color(0xFF0F0B1F);
+  static const lineSoft = Color(0xFFE9E5F4);
+
+  // dark tones
+  static const bgDark = Color(0xFF0E0B1F);
+  static const paperDark = Color(0xFF1A1535);
+  static const inkDark = Color(0xFFF5F2FF);
+  static const muteDark = Color(0xFFA8A3C2);
+  static const lineDark = Color(0xFFF5F2FF);
+  static const lineSoftDark = Color(0xFF2C2550);
+
+  // accents (work in both modes)
+  static const purple = Color(0xFF7C3AED);
+  static const purpleSoft = Color(0xFFEDE4FF);
+  static const purpleSoftDark = Color(0xFF3A2C7A);
+  static const pink = Color(0xFFEC4899);
+  static const pinkSoft = Color(0xFFFCE7F3);
+  static const pinkSoftDark = Color(0xFF6B1E47);
+  static const lime = Color(0xFFD9F99D);
+  static const limeInk = Color(0xFF4D7C0F);
+  static const coral = Color(0xFFFB7185);
+  static const coralSoft = Color(0xFFFFE4E6);
+  static const coralSoftDark = Color(0xFF6B1E27);
+  static const sky = Color(0xFF38BDF8);
+  static const skySoft = Color(0xFFE0F2FE);
+  static const skySoftDark = Color(0xFF143352);
+  static const sun = Color(0xFFFBBF24);
+  static const sunSoft = Color(0xFFFEF3C7);
+  static const sunSoftDark = Color(0xFF5C3E0E);
+  static const mint = Color(0xFF34D399);
+  static const mintSoft = Color(0xFFD1FAE5);
+  static const mintSoftDark = Color(0xFF064E3B);
+  static const danger = Color(0xFFE11D48);
 
   static Color roleColor(UserRole r) {
     switch (r) {
-      case UserRole.admin:
-        return danger;
-      case UserRole.leadership:
-        return accent;
-      case UserRole.student:
-        return primary;
+      case UserRole.admin: return coral;
+      case UserRole.leadership: return sun;
+      case UserRole.student: return purple;
     }
   }
 
   static String roleLabel(UserRole r) {
     switch (r) {
-      case UserRole.admin:
-        return 'Admin';
-      case UserRole.leadership:
-        return 'Leadership';
-      case UserRole.student:
-        return 'Student';
+      case UserRole.admin: return 'Admin';
+      case UserRole.leadership: return 'Leadership';
+      case UserRole.student: return 'Student';
     }
   }
 }
 
-ThemeData buildTheme() {
-  final base = ThemeData.light(useMaterial3: true);
-  return base.copyWith(
-    colorScheme: ColorScheme.fromSeed(seedColor: Brand.primary),
-    scaffoldBackgroundColor: Brand.bg,
-    appBarTheme: const AppBarTheme(
-      backgroundColor: Brand.card,
-      foregroundColor: Brand.text,
+class Tones {
+  final Color bg, paper, ink, mute, line, lineSoft, primaryWash;
+  final bool isDark;
+  const Tones({
+    required this.bg, required this.paper, required this.ink, required this.mute,
+    required this.line, required this.lineSoft, required this.primaryWash,
+    required this.isDark,
+  });
+  static const light = Tones(
+    bg: Brand.bg, paper: Brand.paper, ink: Brand.ink, mute: Brand.mute,
+    line: Brand.line, lineSoft: Brand.lineSoft, primaryWash: Brand.purpleSoft,
+    isDark: false,
+  );
+  static const dark = Tones(
+    bg: Brand.bgDark, paper: Brand.paperDark, ink: Brand.inkDark, mute: Brand.muteDark,
+    line: Brand.lineDark, lineSoft: Brand.lineSoftDark, primaryWash: Brand.purpleSoftDark,
+    isDark: true,
+  );
+  static Tones of(BuildContext c) =>
+      Theme.of(c).brightness == Brightness.dark ? dark : light;
+}
+
+/// The signature card look: hard 2px border + flat offset shadow.
+BoxDecoration sticker(Tones t, {
+  Color? fill,
+  Color? border,
+  double radius = 18,
+  Offset offset = const Offset(4, 4),
+}) {
+  final b = border ?? t.line;
+  return BoxDecoration(
+    color: fill ?? t.paper,
+    border: Border.all(color: b, width: 2),
+    borderRadius: BorderRadius.circular(radius),
+    boxShadow: [BoxShadow(color: b, offset: offset, blurRadius: 0)],
+  );
+}
+
+ThemeData _buildTheme(Tones t) {
+  final cs = t.isDark
+      ? const ColorScheme.dark(primary: Brand.purple).copyWith(
+          primary: Brand.purple, secondary: Brand.pink,
+          surface: Brand.paperDark, onSurface: Brand.inkDark)
+      : const ColorScheme.light(primary: Brand.purple).copyWith(
+          primary: Brand.purple, secondary: Brand.pink,
+          surface: Brand.paper, onSurface: Brand.ink);
+  return ThemeData(
+    useMaterial3: true,
+    brightness: t.isDark ? Brightness.dark : Brightness.light,
+    colorScheme: cs,
+    scaffoldBackgroundColor: t.bg,
+    appBarTheme: AppBarTheme(
+      backgroundColor: t.bg,
+      foregroundColor: t.ink,
       elevation: 0,
       centerTitle: false,
-    ),
-    cardTheme: CardThemeData(
-      color: Brand.card,
-      elevation: 0,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-        side: const BorderSide(color: Brand.border),
+      titleTextStyle: TextStyle(
+        color: t.ink, fontSize: 22, fontWeight: FontWeight.w900, letterSpacing: -0.6,
       ),
-      margin: EdgeInsets.zero,
+      iconTheme: IconThemeData(color: t.ink),
     ),
     inputDecorationTheme: InputDecorationTheme(
       filled: true,
-      fillColor: Brand.card,
-      contentPadding:
-          const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+      fillColor: t.paper,
+      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
-        borderSide: const BorderSide(color: Brand.border),
+        borderSide: BorderSide(color: t.line, width: 2),
       ),
       enabledBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
-        borderSide: const BorderSide(color: Brand.border),
+        borderSide: BorderSide(color: t.line, width: 2),
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
-        borderSide: const BorderSide(color: Brand.primary, width: 1.5),
+        borderSide: const BorderSide(color: Brand.purple, width: 3),
       ),
+      labelStyle: TextStyle(color: t.mute, fontWeight: FontWeight.w700),
     ),
     elevatedButtonTheme: ElevatedButtonThemeData(
-      style: ElevatedButton.styleFrom(
-        backgroundColor: Brand.primary,
-        foregroundColor: Colors.white,
-        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
-        shape: RoundedRectangleBorder(
+      style: ButtonStyle(
+        backgroundColor: const WidgetStatePropertyAll(Brand.purple),
+        foregroundColor: const WidgetStatePropertyAll(Colors.white),
+        padding: const WidgetStatePropertyAll(
+            EdgeInsets.symmetric(horizontal: 18, vertical: 14)),
+        shape: WidgetStatePropertyAll(RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(12),
-        ),
-        textStyle: const TextStyle(fontWeight: FontWeight.w600),
+          side: BorderSide(color: t.line, width: 2),
+        )),
+        textStyle: const WidgetStatePropertyAll(
+            TextStyle(fontWeight: FontWeight.w800, fontSize: 15)),
+        elevation: const WidgetStatePropertyAll(0),
       ),
+    ),
+    outlinedButtonTheme: OutlinedButtonThemeData(
+      style: ButtonStyle(
+        foregroundColor: WidgetStatePropertyAll(t.ink),
+        side: WidgetStatePropertyAll(BorderSide(color: t.line, width: 2)),
+        padding: const WidgetStatePropertyAll(
+            EdgeInsets.symmetric(horizontal: 16, vertical: 12)),
+        shape: WidgetStatePropertyAll(RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+        )),
+        textStyle: const WidgetStatePropertyAll(
+            TextStyle(fontWeight: FontWeight.w700)),
+      ),
+    ),
+    navigationBarTheme: NavigationBarThemeData(
+      backgroundColor: t.paper,
+      surfaceTintColor: Colors.transparent,
+      indicatorColor: Brand.purple.withValues(alpha: 0.15),
+      labelTextStyle: WidgetStatePropertyAll(
+        TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: t.ink),
+      ),
+      iconTheme: WidgetStatePropertyAll(IconThemeData(color: t.mute, size: 22)),
+      height: 68,
+    ),
+    dividerColor: t.lineSoft,
+    snackBarTheme: SnackBarThemeData(
+      backgroundColor: t.ink,
+      contentTextStyle: TextStyle(color: t.bg, fontWeight: FontWeight.w700),
+      behavior: SnackBarBehavior.floating,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+    ),
+    chipTheme: ChipThemeData(
+      backgroundColor: t.paper,
+      side: BorderSide(color: t.line, width: 2),
+      selectedColor: Brand.purpleSoft,
+      labelStyle: TextStyle(color: t.ink, fontWeight: FontWeight.w700),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
     ),
   );
 }
@@ -118,39 +221,6 @@ enum UserRole { student, leadership, admin }
 UserRole _roleFromString(String s) =>
     UserRole.values.firstWhere((r) => r.name == s, orElse: () => UserRole.student);
 
-class ScheduleItem {
-  String id;
-  String period;
-  String className;
-  String teacher;
-  String room;
-  String time;
-  ScheduleItem({
-    required this.id,
-    required this.period,
-    required this.className,
-    required this.teacher,
-    required this.room,
-    required this.time,
-  });
-  Map<String, dynamic> toJson() => {
-        'id': id,
-        'period': period,
-        'className': className,
-        'teacher': teacher,
-        'room': room,
-        'time': time,
-      };
-  factory ScheduleItem.fromJson(Map<String, dynamic> j) => ScheduleItem(
-        id: j['id'],
-        period: j['period'],
-        className: j['className'],
-        teacher: j['teacher'],
-        room: j['room'],
-        time: j['time'],
-      );
-}
-
 class AppUser {
   String id;
   String name;
@@ -161,7 +231,6 @@ class AppUser {
   String grade;
   String avatarEmoji;
   bool disabled;
-  List<ScheduleItem> schedule;
   DateTime createdAt;
 
   AppUser({
@@ -174,10 +243,8 @@ class AppUser {
     this.grade = '',
     this.avatarEmoji = '🙂',
     this.disabled = false,
-    List<ScheduleItem>? schedule,
     DateTime? createdAt,
-  })  : schedule = schedule ?? [],
-        createdAt = createdAt ?? DateTime.now();
+  }) : createdAt = createdAt ?? DateTime.now();
 
   Map<String, dynamic> toJson() => {
         'id': id,
@@ -189,7 +256,6 @@ class AppUser {
         'grade': grade,
         'avatarEmoji': avatarEmoji,
         'disabled': disabled,
-        'schedule': schedule.map((s) => s.toJson()).toList(),
         'createdAt': createdAt.toIso8601String(),
       };
 
@@ -203,9 +269,6 @@ class AppUser {
         grade: j['grade'] ?? '',
         avatarEmoji: j['avatarEmoji'] ?? '🙂',
         disabled: j['disabled'] ?? false,
-        schedule: (j['schedule'] as List? ?? [])
-            .map((s) => ScheduleItem.fromJson(Map<String, dynamic>.from(s)))
-            .toList(),
         createdAt: DateTime.tryParse(j['createdAt'] ?? '') ?? DateTime.now(),
       );
 }
@@ -219,6 +282,7 @@ class Announcement {
   String body;
   DateTime createdAt;
   bool pinned;
+  int colorSeed;
   Announcement({
     required this.id,
     required this.authorId,
@@ -228,26 +292,21 @@ class Announcement {
     required this.body,
     required this.createdAt,
     this.pinned = false,
+    this.colorSeed = 0,
   });
   Map<String, dynamic> toJson() => {
-        'id': id,
-        'authorId': authorId,
-        'authorName': authorName,
-        'authorRole': authorRole.name,
-        'title': title,
-        'body': body,
-        'createdAt': createdAt.toIso8601String(),
-        'pinned': pinned,
+        'id': id, 'authorId': authorId, 'authorName': authorName,
+        'authorRole': authorRole.name, 'title': title, 'body': body,
+        'createdAt': createdAt.toIso8601String(), 'pinned': pinned,
+        'colorSeed': colorSeed,
       };
   factory Announcement.fromJson(Map<String, dynamic> j) => Announcement(
-        id: j['id'],
-        authorId: j['authorId'],
-        authorName: j['authorName'],
+        id: j['id'], authorId: j['authorId'], authorName: j['authorName'],
         authorRole: _roleFromString(j['authorRole']),
-        title: j['title'],
-        body: j['body'],
+        title: j['title'], body: j['body'],
         createdAt: DateTime.parse(j['createdAt']),
         pinned: j['pinned'] ?? false,
+        colorSeed: j['colorSeed'] ?? 0,
       );
 }
 
@@ -257,37 +316,23 @@ class Flyer {
   String authorName;
   String title;
   String description;
-  String emoji; // visual placeholder
+  String emoji;
   int colorSeed;
   DateTime createdAt;
   Flyer({
-    required this.id,
-    required this.authorId,
-    required this.authorName,
-    required this.title,
-    required this.description,
-    required this.emoji,
-    required this.colorSeed,
-    required this.createdAt,
+    required this.id, required this.authorId, required this.authorName,
+    required this.title, required this.description, required this.emoji,
+    required this.colorSeed, required this.createdAt,
   });
   Map<String, dynamic> toJson() => {
-        'id': id,
-        'authorId': authorId,
-        'authorName': authorName,
-        'title': title,
-        'description': description,
-        'emoji': emoji,
-        'colorSeed': colorSeed,
-        'createdAt': createdAt.toIso8601String(),
+        'id': id, 'authorId': authorId, 'authorName': authorName,
+        'title': title, 'description': description, 'emoji': emoji,
+        'colorSeed': colorSeed, 'createdAt': createdAt.toIso8601String(),
       };
   factory Flyer.fromJson(Map<String, dynamic> j) => Flyer(
-        id: j['id'],
-        authorId: j['authorId'],
-        authorName: j['authorName'],
-        title: j['title'],
-        description: j['description'],
-        emoji: j['emoji'] ?? '📣',
-        colorSeed: j['colorSeed'] ?? 0,
+        id: j['id'], authorId: j['authorId'], authorName: j['authorName'],
+        title: j['title'], description: j['description'],
+        emoji: j['emoji'] ?? '📣', colorSeed: j['colorSeed'] ?? 0,
         createdAt: DateTime.parse(j['createdAt']),
       );
 }
@@ -297,33 +342,22 @@ class ResourceLink {
   String authorId;
   String title;
   String url;
-  String category; // Classroom / Clever / Library / Sports / Other
+  String category;
   String description;
   DateTime createdAt;
   ResourceLink({
-    required this.id,
-    required this.authorId,
-    required this.title,
-    required this.url,
-    required this.category,
-    required this.description,
+    required this.id, required this.authorId, required this.title,
+    required this.url, required this.category, required this.description,
     required this.createdAt,
   });
   Map<String, dynamic> toJson() => {
-        'id': id,
-        'authorId': authorId,
-        'title': title,
-        'url': url,
-        'category': category,
-        'description': description,
+        'id': id, 'authorId': authorId, 'title': title, 'url': url,
+        'category': category, 'description': description,
         'createdAt': createdAt.toIso8601String(),
       };
   factory ResourceLink.fromJson(Map<String, dynamic> j) => ResourceLink(
-        id: j['id'],
-        authorId: j['authorId'],
-        title: j['title'],
-        url: j['url'],
-        category: j['category'] ?? 'Other',
+        id: j['id'], authorId: j['authorId'], title: j['title'],
+        url: j['url'], category: j['category'] ?? 'Other',
         description: j['description'] ?? '',
         createdAt: DateTime.parse(j['createdAt']),
       );
@@ -340,33 +374,20 @@ class Event {
   int ticketsAvailable;
   int ticketsSold;
   Event({
-    required this.id,
-    required this.title,
-    required this.description,
-    required this.date,
-    required this.location,
-    required this.ticketed,
-    required this.ticketPrice,
-    required this.ticketsAvailable,
+    required this.id, required this.title, required this.description,
+    required this.date, required this.location, required this.ticketed,
+    required this.ticketPrice, required this.ticketsAvailable,
     this.ticketsSold = 0,
   });
   Map<String, dynamic> toJson() => {
-        'id': id,
-        'title': title,
-        'description': description,
-        'date': date.toIso8601String(),
-        'location': location,
-        'ticketed': ticketed,
-        'ticketPrice': ticketPrice,
-        'ticketsAvailable': ticketsAvailable,
-        'ticketsSold': ticketsSold,
+        'id': id, 'title': title, 'description': description,
+        'date': date.toIso8601String(), 'location': location,
+        'ticketed': ticketed, 'ticketPrice': ticketPrice,
+        'ticketsAvailable': ticketsAvailable, 'ticketsSold': ticketsSold,
       };
   factory Event.fromJson(Map<String, dynamic> j) => Event(
-        id: j['id'],
-        title: j['title'],
-        description: j['description'],
-        date: DateTime.parse(j['date']),
-        location: j['location'],
+        id: j['id'], title: j['title'], description: j['description'],
+        date: DateTime.parse(j['date']), location: j['location'],
         ticketed: j['ticketed'] ?? false,
         ticketPrice: (j['ticketPrice'] as num?)?.toDouble() ?? 0,
         ticketsAvailable: j['ticketsAvailable'] ?? 0,
@@ -381,25 +402,16 @@ class Ticket {
   String code;
   DateTime purchasedAt;
   Ticket({
-    required this.id,
-    required this.eventId,
-    required this.userId,
-    required this.code,
-    required this.purchasedAt,
+    required this.id, required this.eventId, required this.userId,
+    required this.code, required this.purchasedAt,
   });
   Map<String, dynamic> toJson() => {
-        'id': id,
-        'eventId': eventId,
-        'userId': userId,
-        'code': code,
-        'purchasedAt': purchasedAt.toIso8601String(),
+        'id': id, 'eventId': eventId, 'userId': userId,
+        'code': code, 'purchasedAt': purchasedAt.toIso8601String(),
       };
   factory Ticket.fromJson(Map<String, dynamic> j) => Ticket(
-        id: j['id'],
-        eventId: j['eventId'],
-        userId: j['userId'],
-        code: j['code'],
-        purchasedAt: DateTime.parse(j['purchasedAt']),
+        id: j['id'], eventId: j['eventId'], userId: j['userId'],
+        code: j['code'], purchasedAt: DateTime.parse(j['purchasedAt']),
       );
 }
 
@@ -411,28 +423,16 @@ class Contact {
   String phone;
   String department;
   Contact({
-    required this.id,
-    required this.name,
-    required this.title,
-    required this.email,
-    required this.phone,
-    required this.department,
+    required this.id, required this.name, required this.title,
+    required this.email, required this.phone, required this.department,
   });
   Map<String, dynamic> toJson() => {
-        'id': id,
-        'name': name,
-        'title': title,
-        'email': email,
-        'phone': phone,
-        'department': department,
+        'id': id, 'name': name, 'title': title,
+        'email': email, 'phone': phone, 'department': department,
       };
   factory Contact.fromJson(Map<String, dynamic> j) => Contact(
-        id: j['id'],
-        name: j['name'],
-        title: j['title'],
-        email: j['email'],
-        phone: j['phone'],
-        department: j['department'],
+        id: j['id'], name: j['name'], title: j['title'],
+        email: j['email'], phone: j['phone'], department: j['department'],
       );
 }
 
@@ -443,30 +443,21 @@ class AuditEntry {
   String action;
   DateTime timestamp;
   AuditEntry({
-    required this.id,
-    required this.actorId,
-    required this.actorName,
-    required this.action,
-    required this.timestamp,
+    required this.id, required this.actorId, required this.actorName,
+    required this.action, required this.timestamp,
   });
   Map<String, dynamic> toJson() => {
-        'id': id,
-        'actorId': actorId,
-        'actorName': actorName,
-        'action': action,
-        'timestamp': timestamp.toIso8601String(),
+        'id': id, 'actorId': actorId, 'actorName': actorName,
+        'action': action, 'timestamp': timestamp.toIso8601String(),
       };
   factory AuditEntry.fromJson(Map<String, dynamic> j) => AuditEntry(
-        id: j['id'],
-        actorId: j['actorId'],
-        actorName: j['actorName'],
-        action: j['action'],
-        timestamp: DateTime.parse(j['timestamp']),
+        id: j['id'], actorId: j['actorId'], actorName: j['actorName'],
+        action: j['action'], timestamp: DateTime.parse(j['timestamp']),
       );
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// APP STATE (in-memory + persisted to SharedPreferences)
+// APP STATE
 // ─────────────────────────────────────────────────────────────────────────────
 
 String _newId() =>
@@ -475,6 +466,7 @@ String _newId() =>
 
 class AppState extends ChangeNotifier {
   AppUser? currentUser;
+  bool darkMode = false;
 
   List<AppUser> users = [];
   List<Announcement> announcements = [];
@@ -485,7 +477,7 @@ class AppState extends ChangeNotifier {
   List<Contact> contacts = [];
   List<AuditEntry> audit = [];
 
-  static const _kKey = 'school_hub_state_v1';
+  static const _kKey = 'school_hub_state_v2';
 
   Future<void> load() async {
     final p = await SharedPreferences.getInstance();
@@ -497,34 +489,27 @@ class AppState extends ChangeNotifier {
     }
     try {
       final j = jsonDecode(raw) as Map<String, dynamic>;
+      darkMode = j['darkMode'] ?? false;
       users = (j['users'] as List)
-          .map((e) => AppUser.fromJson(Map<String, dynamic>.from(e)))
-          .toList();
+          .map((e) => AppUser.fromJson(Map<String, dynamic>.from(e))).toList();
       announcements = (j['announcements'] as List)
-          .map((e) => Announcement.fromJson(Map<String, dynamic>.from(e)))
-          .toList();
+          .map((e) => Announcement.fromJson(Map<String, dynamic>.from(e))).toList();
       flyers = (j['flyers'] as List)
-          .map((e) => Flyer.fromJson(Map<String, dynamic>.from(e)))
-          .toList();
+          .map((e) => Flyer.fromJson(Map<String, dynamic>.from(e))).toList();
       resources = (j['resources'] as List)
-          .map((e) => ResourceLink.fromJson(Map<String, dynamic>.from(e)))
-          .toList();
+          .map((e) => ResourceLink.fromJson(Map<String, dynamic>.from(e))).toList();
       events = (j['events'] as List)
-          .map((e) => Event.fromJson(Map<String, dynamic>.from(e)))
-          .toList();
+          .map((e) => Event.fromJson(Map<String, dynamic>.from(e))).toList();
       tickets = (j['tickets'] as List)
-          .map((e) => Ticket.fromJson(Map<String, dynamic>.from(e)))
-          .toList();
+          .map((e) => Ticket.fromJson(Map<String, dynamic>.from(e))).toList();
       contacts = (j['contacts'] as List)
-          .map((e) => Contact.fromJson(Map<String, dynamic>.from(e)))
-          .toList();
+          .map((e) => Contact.fromJson(Map<String, dynamic>.from(e))).toList();
       audit = (j['audit'] as List)
-          .map((e) => AuditEntry.fromJson(Map<String, dynamic>.from(e)))
-          .toList();
+          .map((e) => AuditEntry.fromJson(Map<String, dynamic>.from(e))).toList();
       final activeId = j['currentUserId'] as String?;
       if (activeId != null) {
-        currentUser =
-            users.cast<AppUser?>().firstWhere((u) => u!.id == activeId, orElse: () => null);
+        currentUser = users.cast<AppUser?>().firstWhere(
+            (u) => u!.id == activeId, orElse: () => null);
         if (currentUser?.disabled == true) currentUser = null;
       }
     } catch (_) {
@@ -536,6 +521,7 @@ class AppState extends ChangeNotifier {
   Future<void> save() async {
     final p = await SharedPreferences.getInstance();
     final j = {
+      'darkMode': darkMode,
       'users': users.map((e) => e.toJson()).toList(),
       'announcements': announcements.map((e) => e.toJson()).toList(),
       'flyers': flyers.map((e) => e.toJson()).toList(),
@@ -549,148 +535,115 @@ class AppState extends ChangeNotifier {
     await p.setString(_kKey, jsonEncode(j));
   }
 
+  void toggleDarkMode() {
+    darkMode = !darkMode;
+    save();
+    notifyListeners();
+  }
+
   void _seed() {
     final admin = AppUser(
-      id: _newId(),
-      name: 'Principal Adams',
-      email: 'admin@school.edu',
-      password: 'admin123',
-      role: UserRole.admin,
-      bio: 'Head of school administration.',
-      grade: 'Staff',
-      avatarEmoji: '👔',
+      id: _newId(), name: 'Principal Adams', email: 'admin@school.edu',
+      password: 'admin123', role: UserRole.admin,
+      bio: 'Head of school administration.', grade: 'Staff', avatarEmoji: '👔',
     );
     final leader = AppUser(
-      id: _newId(),
-      name: 'Maya Chen',
-      email: 'maya@school.edu',
-      password: 'leader123',
-      role: UserRole.leadership,
-      bio: 'ASB President. Coffee + spirit weeks.',
-      grade: '12',
-      avatarEmoji: '🎤',
+      id: _newId(), name: 'Maya Chen', email: 'maya@school.edu',
+      password: 'leader123', role: UserRole.leadership,
+      bio: 'ASB President. Coffee + spirit weeks.', grade: '12', avatarEmoji: '🎤',
     );
     final student = AppUser(
-      id: _newId(),
-      name: 'Alex Park',
-      email: 'alex@school.edu',
-      password: 'student123',
-      role: UserRole.student,
-      bio: 'Sophomore. Robotics club, runs cross-country.',
-      grade: '10',
-      avatarEmoji: '🏃',
-      schedule: [
-        ScheduleItem(id: _newId(), period: '1', className: 'Algebra II', teacher: 'Ms. Reyes', room: '204', time: '8:00 – 8:50'),
-        ScheduleItem(id: _newId(), period: '2', className: 'English', teacher: 'Mr. Patel', room: '112', time: '8:55 – 9:45'),
-        ScheduleItem(id: _newId(), period: '3', className: 'Biology', teacher: 'Dr. Lee', room: '301', time: '9:50 – 10:40'),
-        ScheduleItem(id: _newId(), period: '4', className: 'World History', teacher: 'Mr. Brooks', room: '208', time: '10:45 – 11:35'),
-      ],
+      id: _newId(), name: 'Alex Park', email: 'alex@school.edu',
+      password: 'student123', role: UserRole.student,
+      bio: 'Sophomore. Robotics club, runs cross-country.', grade: '10', avatarEmoji: '🏃',
     );
     users = [admin, leader, student];
 
     announcements = [
       Announcement(
-        id: _newId(),
-        authorId: admin.id,
-        authorName: admin.name,
-        authorRole: UserRole.admin,
-        title: 'Welcome back!',
-        body: 'New semester starts Monday. Schedules are live in the app.',
+        id: _newId(), authorId: admin.id, authorName: admin.name,
+        authorRole: UserRole.admin, title: 'Welcome back!',
+        body: 'New semester starts Monday. Check your resources and events.',
         createdAt: DateTime.now().subtract(const Duration(hours: 2)),
-        pinned: true,
+        pinned: true, colorSeed: 2,
       ),
       Announcement(
-        id: _newId(),
-        authorId: leader.id,
-        authorName: leader.name,
-        authorRole: UserRole.leadership,
-        title: 'Spirit week 🎉',
+        id: _newId(), authorId: leader.id, authorName: leader.name,
+        authorRole: UserRole.leadership, title: 'Spirit week 🎉',
         body: 'Mon: Pajama day. Tue: Twin day. Wed: Decades. Thu: Jersey. Fri: Spirit colors!',
-        createdAt: DateTime.now().subtract(const Duration(days: 1)),
+        createdAt: DateTime.now().subtract(const Duration(days: 1)), colorSeed: 1,
       ),
     ];
 
     flyers = [
-      Flyer(
-        id: _newId(),
-        authorId: leader.id,
-        authorName: leader.name,
+      Flyer(id: _newId(), authorId: leader.id, authorName: leader.name,
         title: 'Homecoming Dance',
         description: 'Friday 7pm in the gym. Tickets \$15 at the door.',
-        emoji: '💃',
-        colorSeed: 1,
-        createdAt: DateTime.now().subtract(const Duration(days: 2)),
-      ),
-      Flyer(
-        id: _newId(),
-        authorId: leader.id,
-        authorName: leader.name,
+        emoji: '💃', colorSeed: 1,
+        createdAt: DateTime.now().subtract(const Duration(days: 2))),
+      Flyer(id: _newId(), authorId: leader.id, authorName: leader.name,
         title: 'Blood Drive',
         description: 'Wednesday in the library. Sign up at the front desk.',
-        emoji: '🩸',
-        colorSeed: 3,
-        createdAt: DateTime.now().subtract(const Duration(days: 3)),
-      ),
+        emoji: '🩸', colorSeed: 3,
+        createdAt: DateTime.now().subtract(const Duration(days: 3))),
     ];
 
     resources = [
-      ResourceLink(id: _newId(), authorId: admin.id, title: 'Google Classroom', url: 'https://classroom.google.com', category: 'Classroom', description: 'All your classes and assignments.', createdAt: DateTime.now()),
-      ResourceLink(id: _newId(), authorId: admin.id, title: 'Clever Portal', url: 'https://clever.com', category: 'Clever', description: 'Single sign-on to school apps.', createdAt: DateTime.now()),
-      ResourceLink(id: _newId(), authorId: admin.id, title: 'Library Catalog', url: 'https://library.school.edu', category: 'Library', description: 'Search books and reserve study rooms.', createdAt: DateTime.now()),
-      ResourceLink(id: _newId(), authorId: leader.id, title: 'Athletics Schedule', url: 'https://athletics.school.edu', category: 'Sports', description: 'Game schedules and standings.', createdAt: DateTime.now()),
+      ResourceLink(id: _newId(), authorId: admin.id, title: 'Google Classroom',
+        url: 'https://classroom.google.com', category: 'Classroom',
+        description: 'All your classes and assignments.', createdAt: DateTime.now()),
+      ResourceLink(id: _newId(), authorId: admin.id, title: 'Clever Portal',
+        url: 'https://clever.com', category: 'Clever',
+        description: 'Single sign-on to school apps.', createdAt: DateTime.now()),
+      ResourceLink(id: _newId(), authorId: admin.id, title: 'Library Catalog',
+        url: 'https://library.school.edu', category: 'Library',
+        description: 'Search books and reserve study rooms.', createdAt: DateTime.now()),
+      ResourceLink(id: _newId(), authorId: leader.id, title: 'Athletics',
+        url: 'https://athletics.school.edu', category: 'Sports',
+        description: 'Game schedules and standings.', createdAt: DateTime.now()),
     ];
 
     events = [
-      Event(
-        id: _newId(),
-        title: 'Varsity Football vs. Lincoln',
+      Event(id: _newId(), title: 'Varsity Football vs. Lincoln',
         description: 'Home game — wear your spirit colors!',
         date: DateTime.now().add(const Duration(days: 5)),
-        location: 'Memorial Stadium',
-        ticketed: true,
-        ticketPrice: 8.00,
-        ticketsAvailable: 500,
-      ),
-      Event(
-        id: _newId(),
-        title: 'Spring Musical: Into the Woods',
+        location: 'Memorial Stadium', ticketed: true,
+        ticketPrice: 8.00, ticketsAvailable: 500),
+      Event(id: _newId(), title: 'Spring Musical: Into the Woods',
         description: 'Drama club spring production.',
         date: DateTime.now().add(const Duration(days: 14)),
-        location: 'Auditorium',
-        ticketed: true,
-        ticketPrice: 12.00,
-        ticketsAvailable: 200,
-      ),
-      Event(
-        id: _newId(),
-        title: 'Parent-Teacher Conferences',
+        location: 'Auditorium', ticketed: true,
+        ticketPrice: 12.00, ticketsAvailable: 200),
+      Event(id: _newId(), title: 'Parent-Teacher Conferences',
         description: 'Sign up via the office.',
         date: DateTime.now().add(const Duration(days: 21)),
-        location: 'Classrooms',
-        ticketed: false,
-        ticketPrice: 0,
-        ticketsAvailable: 0,
-      ),
+        location: 'Classrooms', ticketed: false,
+        ticketPrice: 0, ticketsAvailable: 0),
     ];
 
     contacts = [
-      Contact(id: _newId(), name: 'Principal Adams', title: 'Principal', email: 'adams@school.edu', phone: '555-0100', department: 'Admin'),
-      Contact(id: _newId(), name: 'Ms. Ortiz', title: 'School Counselor', email: 'ortiz@school.edu', phone: '555-0110', department: 'Counseling'),
-      Contact(id: _newId(), name: 'Nurse Kim', title: 'School Nurse', email: 'kim@school.edu', phone: '555-0120', department: 'Health'),
-      Contact(id: _newId(), name: 'Coach Rivera', title: 'Athletic Director', email: 'rivera@school.edu', phone: '555-0130', department: 'Athletics'),
+      Contact(id: _newId(), name: 'Principal Adams', title: 'Principal',
+        email: 'adams@school.edu', phone: '555-0100', department: 'Admin'),
+      Contact(id: _newId(), name: 'Ms. Ortiz', title: 'School Counselor',
+        email: 'ortiz@school.edu', phone: '555-0110', department: 'Counseling'),
+      Contact(id: _newId(), name: 'Nurse Kim', title: 'School Nurse',
+        email: 'kim@school.edu', phone: '555-0120', department: 'Health'),
+      Contact(id: _newId(), name: 'Coach Rivera', title: 'Athletic Director',
+        email: 'rivera@school.edu', phone: '555-0130', department: 'Athletics'),
     ];
 
     audit = [
-      AuditEntry(id: _newId(), actorId: admin.id, actorName: admin.name, action: 'Seeded initial data', timestamp: DateTime.now()),
+      AuditEntry(id: _newId(), actorId: admin.id, actorName: admin.name,
+        action: 'Seeded initial data', timestamp: DateTime.now()),
     ];
   }
 
   // ── auth ────────────────────────────────────────────────────────────────
   String? signIn(String email, String password) {
     final match = users.cast<AppUser?>().firstWhere(
-          (u) => u!.email.toLowerCase() == email.toLowerCase() && u.password == password,
-          orElse: () => null,
-        );
+      (u) => u!.email.toLowerCase() == email.toLowerCase() && u.password == password,
+      orElse: () => null,
+    );
     if (match == null) return 'Invalid email or password.';
     if (match.disabled) return 'This account has been disabled by an administrator.';
     currentUser = match;
@@ -701,24 +654,15 @@ class AppState extends ChangeNotifier {
   }
 
   String? signUp({
-    required String name,
-    required String email,
-    required String password,
-    required UserRole role,
+    required String name, required String email, required String password,
     required String grade,
   }) {
     if (users.any((u) => u.email.toLowerCase() == email.toLowerCase())) {
       return 'An account with that email already exists.';
     }
-    // Only allow self-signup as student. Leadership/admin must be promoted by an admin.
-    final actualRole = role == UserRole.student ? UserRole.student : UserRole.student;
     final u = AppUser(
-      id: _newId(),
-      name: name,
-      email: email,
-      password: password,
-      role: actualRole,
-      grade: grade,
+      id: _newId(), name: name, email: email, password: password,
+      role: UserRole.student, grade: grade,
     );
     users.add(u);
     currentUser = u;
@@ -748,43 +692,16 @@ class AppState extends ChangeNotifier {
     notifyListeners();
   }
 
-  void upsertScheduleItem(ScheduleItem item) {
-    final u = currentUser;
-    if (u == null) return;
-    final i = u.schedule.indexWhere((s) => s.id == item.id);
-    if (i >= 0) {
-      u.schedule[i] = item;
-    } else {
-      u.schedule.add(item);
-    }
-    u.schedule.sort((a, b) => a.period.compareTo(b.period));
-    save();
-    notifyListeners();
-  }
-
-  void removeScheduleItem(String id) {
-    currentUser?.schedule.removeWhere((s) => s.id == id);
-    save();
-    notifyListeners();
-  }
-
-  // ── content (leadership + admin) ────────────────────────────────────────
-  void postAnnouncement(String title, String body, {bool pinned = false}) {
+  // ── content ─────────────────────────────────────────────────────────────
+  void postAnnouncement(String title, String body, {bool pinned = false, int colorSeed = 0}) {
     final u = currentUser;
     if (u == null || !(u.role == UserRole.leadership || u.role == UserRole.admin)) return;
-    announcements.insert(
-      0,
-      Announcement(
-        id: _newId(),
-        authorId: u.id,
-        authorName: u.name,
-        authorRole: u.role,
-        title: title,
-        body: body,
-        createdAt: DateTime.now(),
-        pinned: pinned && u.role == UserRole.admin,
-      ),
-    );
+    announcements.insert(0, Announcement(
+      id: _newId(), authorId: u.id, authorName: u.name, authorRole: u.role,
+      title: title, body: body, createdAt: DateTime.now(),
+      pinned: pinned && u.role == UserRole.admin,
+      colorSeed: colorSeed,
+    ));
     _log(u, 'Posted announcement: $title');
     save();
     notifyListeners();
@@ -793,7 +710,9 @@ class AppState extends ChangeNotifier {
   void deleteAnnouncement(String id) {
     final u = currentUser;
     if (u == null) return;
-    final a = announcements.firstWhere((x) => x.id == id, orElse: () => Announcement(id: '', authorId: '', authorName: '', authorRole: UserRole.student, title: '', body: '', createdAt: DateTime.now()));
+    final a = announcements.firstWhere((x) => x.id == id,
+      orElse: () => Announcement(id: '', authorId: '', authorName: '',
+        authorRole: UserRole.student, title: '', body: '', createdAt: DateTime.now()));
     if (a.id.isEmpty) return;
     if (u.role != UserRole.admin && u.id != a.authorId) return;
     announcements.removeWhere((x) => x.id == id);
@@ -805,19 +724,11 @@ class AppState extends ChangeNotifier {
   void postFlyer(String title, String description, String emoji, int colorSeed) {
     final u = currentUser;
     if (u == null || !(u.role == UserRole.leadership || u.role == UserRole.admin)) return;
-    flyers.insert(
-      0,
-      Flyer(
-        id: _newId(),
-        authorId: u.id,
-        authorName: u.name,
-        title: title,
-        description: description,
-        emoji: emoji,
-        colorSeed: colorSeed,
-        createdAt: DateTime.now(),
-      ),
-    );
+    flyers.insert(0, Flyer(
+      id: _newId(), authorId: u.id, authorName: u.name,
+      title: title, description: description, emoji: emoji,
+      colorSeed: colorSeed, createdAt: DateTime.now(),
+    ));
     _log(u, 'Posted flyer: $title');
     save();
     notifyListeners();
@@ -826,7 +737,9 @@ class AppState extends ChangeNotifier {
   void deleteFlyer(String id) {
     final u = currentUser;
     if (u == null) return;
-    final f = flyers.firstWhere((x) => x.id == id, orElse: () => Flyer(id: '', authorId: '', authorName: '', title: '', description: '', emoji: '', colorSeed: 0, createdAt: DateTime.now()));
+    final f = flyers.firstWhere((x) => x.id == id,
+      orElse: () => Flyer(id: '', authorId: '', authorName: '', title: '',
+        description: '', emoji: '', colorSeed: 0, createdAt: DateTime.now()));
     if (f.id.isEmpty) return;
     if (u.role != UserRole.admin && u.id != f.authorId) return;
     flyers.removeWhere((x) => x.id == id);
@@ -838,18 +751,10 @@ class AppState extends ChangeNotifier {
   void postResource(String title, String url, String category, String description) {
     final u = currentUser;
     if (u == null || !(u.role == UserRole.leadership || u.role == UserRole.admin)) return;
-    resources.insert(
-      0,
-      ResourceLink(
-        id: _newId(),
-        authorId: u.id,
-        title: title,
-        url: url,
-        category: category,
-        description: description,
-        createdAt: DateTime.now(),
-      ),
-    );
+    resources.insert(0, ResourceLink(
+      id: _newId(), authorId: u.id, title: title, url: url,
+      category: category, description: description, createdAt: DateTime.now(),
+    ));
     _log(u, 'Posted resource: $title');
     save();
     notifyListeners();
@@ -858,7 +763,9 @@ class AppState extends ChangeNotifier {
   void deleteResource(String id) {
     final u = currentUser;
     if (u == null) return;
-    final r = resources.firstWhere((x) => x.id == id, orElse: () => ResourceLink(id: '', authorId: '', title: '', url: '', category: '', description: '', createdAt: DateTime.now()));
+    final r = resources.firstWhere((x) => x.id == id,
+      orElse: () => ResourceLink(id: '', authorId: '', title: '', url: '',
+        category: '', description: '', createdAt: DateTime.now()));
     if (r.id.isEmpty) return;
     if (u.role != UserRole.admin && u.id != r.authorId) return;
     resources.removeWhere((x) => x.id == id);
@@ -867,7 +774,7 @@ class AppState extends ChangeNotifier {
     notifyListeners();
   }
 
-  // ── events + tickets ────────────────────────────────────────────────────
+  // ── events ──────────────────────────────────────────────────────────────
   void createEvent(Event e) {
     final u = currentUser;
     if (u == null || !(u.role == UserRole.leadership || u.role == UserRole.admin)) return;
@@ -881,7 +788,10 @@ class AppState extends ChangeNotifier {
   void deleteEvent(String id) {
     final u = currentUser;
     if (u == null || u.role != UserRole.admin) return;
-    final e = events.firstWhere((x) => x.id == id, orElse: () => Event(id: '', title: '', description: '', date: DateTime.now(), location: '', ticketed: false, ticketPrice: 0, ticketsAvailable: 0));
+    final e = events.firstWhere((x) => x.id == id,
+      orElse: () => Event(id: '', title: '', description: '',
+        date: DateTime.now(), location: '', ticketed: false,
+        ticketPrice: 0, ticketsAvailable: 0));
     if (e.id.isEmpty) return;
     events.removeWhere((x) => x.id == id);
     tickets.removeWhere((t) => t.eventId == id);
@@ -903,13 +813,8 @@ class AppState extends ChangeNotifier {
     }
     e.ticketsSold += 1;
     final code = 'TKT-${Random().nextInt(999999).toString().padLeft(6, '0')}';
-    tickets.add(Ticket(
-      id: _newId(),
-      eventId: eventId,
-      userId: u.id,
-      code: code,
-      purchasedAt: DateTime.now(),
-    ));
+    tickets.add(Ticket(id: _newId(), eventId: eventId, userId: u.id,
+      code: code, purchasedAt: DateTime.now()));
     _log(u, 'Bought ticket for: ${e.title}');
     save();
     notifyListeners();
@@ -944,7 +849,7 @@ class AppState extends ChangeNotifier {
     final u = currentUser;
     if (u == null || u.role != UserRole.admin) return;
     final target = users.firstWhere((x) => x.id == userId, orElse: () => u);
-    if (target.id == u.id) return; // never disable yourself
+    if (target.id == u.id) return;
     target.disabled = disabled;
     _log(u, '${disabled ? "Disabled" : "Enabled"} user: ${target.name}');
     save();
@@ -955,7 +860,7 @@ class AppState extends ChangeNotifier {
     final u = currentUser;
     if (u == null || u.role != UserRole.admin) return;
     final target = users.firstWhere((x) => x.id == userId, orElse: () => u);
-    if (target.id == u.id) return; // can't demote self
+    if (target.id == u.id) return;
     target.role = role;
     _log(u, 'Set role of ${target.name} to ${Brand.roleLabel(role)}');
     save();
@@ -976,16 +881,10 @@ class AppState extends ChangeNotifier {
 
   // ── audit ───────────────────────────────────────────────────────────────
   void _log(AppUser actor, String action) {
-    audit.insert(
-      0,
-      AuditEntry(
-        id: _newId(),
-        actorId: actor.id,
-        actorName: actor.name,
-        action: action,
-        timestamp: DateTime.now(),
-      ),
-    );
+    audit.insert(0, AuditEntry(
+      id: _newId(), actorId: actor.id, actorName: actor.name,
+      action: action, timestamp: DateTime.now(),
+    ));
     if (audit.length > 500) audit = audit.sublist(0, 500);
   }
 }
@@ -997,7 +896,6 @@ class AppState extends ChangeNotifier {
 class SchoolHubApp extends StatelessWidget {
   final AppState state;
   const SchoolHubApp({super.key, required this.state});
-
   @override
   Widget build(BuildContext context) {
     return AnimatedBuilder(
@@ -1005,8 +903,12 @@ class SchoolHubApp extends StatelessWidget {
       builder: (_, __) => MaterialApp(
         title: 'School Hub',
         debugShowCheckedModeBanner: false,
-        theme: buildTheme(),
-        home: state.currentUser == null ? AuthScreen(state: state) : HomeShell(state: state),
+        theme: _buildTheme(Tones.light),
+        darkTheme: _buildTheme(Tones.dark),
+        themeMode: state.darkMode ? ThemeMode.dark : ThemeMode.light,
+        home: state.currentUser == null
+            ? AuthScreen(state: state)
+            : HomeShell(state: state),
       ),
     );
   }
@@ -1034,96 +936,96 @@ class _AuthScreenState extends State<AuthScreen> {
 
   @override
   void dispose() {
-    _email.dispose();
-    _password.dispose();
-    _name.dispose();
-    _grade.dispose();
+    _email.dispose(); _password.dispose();
+    _name.dispose(); _grade.dispose();
     super.dispose();
   }
 
   Future<void> _submit() async {
-    setState(() {
-      _error = null;
-      _busy = true;
-    });
-    String? err;
-    if (_isSignup) {
-      err = widget.state.signUp(
-        name: _name.text.trim(),
-        email: _email.text.trim(),
-        password: _password.text,
-        role: UserRole.student,
-        grade: _grade.text.trim(),
-      );
-    } else {
-      err = widget.state.signIn(_email.text.trim(), _password.text);
-    }
+    setState(() { _error = null; _busy = true; });
+    final err = _isSignup
+        ? widget.state.signUp(
+            name: _name.text.trim(), email: _email.text.trim(),
+            password: _password.text, grade: _grade.text.trim())
+        : widget.state.signIn(_email.text.trim(), _password.text);
     if (!mounted) return;
-    setState(() {
-      _error = err;
-      _busy = false;
-    });
+    setState(() { _error = err; _busy = false; });
   }
 
   void _fillDemo(String email, String password) {
-    _email.text = email;
-    _password.text = password;
+    _email.text = email; _password.text = password;
     setState(() => _isSignup = false);
   }
 
   @override
   Widget build(BuildContext context) {
+    final t = Tones.of(context);
     return Scaffold(
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
-            padding: const EdgeInsets.all(24),
+            padding: const EdgeInsets.all(20),
             child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 420),
+              constraints: const BoxConstraints(maxWidth: 440),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  const SizedBox(height: 12),
-                  Container(
-                    width: 72,
-                    height: 72,
-                    decoration: BoxDecoration(
-                      color: Brand.primaryLight,
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: const Center(
-                      child: Text('🏫', style: TextStyle(fontSize: 36)),
-                    ),
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      Transform.rotate(
+                        angle: -0.08,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                          decoration: sticker(t, fill: Brand.lime, radius: 14),
+                          child: const Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text('🏫', style: TextStyle(fontSize: 22)),
+                              SizedBox(width: 6),
+                              Text('SCHOOL HUB',
+                                style: TextStyle(fontWeight: FontWeight.w900,
+                                  color: Brand.ink, letterSpacing: -0.4, fontSize: 16)),
+                            ],
+                          ),
+                        ),
+                      ),
+                      const Spacer(),
+                      _IconBtn(
+                        icon: widget.state.darkMode ? Icons.light_mode : Icons.dark_mode,
+                        onTap: () => widget.state.toggleDarkMode(),
+                        tones: t,
+                      ),
+                    ],
                   ),
-                  const SizedBox(height: 20),
+                  const SizedBox(height: 24),
                   Text(
-                    _isSignup ? 'Create your account' : 'School Hub',
-                    style: const TextStyle(
-                      fontSize: 26,
-                      fontWeight: FontWeight.w700,
-                      color: Brand.text,
+                    _isSignup ? 'Make your account.' : 'Welcome\nback.',
+                    style: TextStyle(
+                      fontSize: 44, height: 0.95, color: t.ink,
+                      fontWeight: FontWeight.w900, letterSpacing: -1.5,
                     ),
                   ),
-                  const SizedBox(height: 6),
+                  const SizedBox(height: 12),
                   Text(
                     _isSignup
                         ? 'New students start here. Leadership and admin roles are assigned by your administrator.'
-                        : 'Sign in to see announcements, your schedule, events, and more.',
-                    style: const TextStyle(color: Brand.muted),
+                        : 'Sign in for announcements, events, tickets, and everything else.',
+                    style: TextStyle(color: t.mute, fontSize: 15, height: 1.4),
                   ),
                   const SizedBox(height: 24),
                   if (_isSignup) ...[
                     TextField(controller: _name, decoration: const InputDecoration(labelText: 'Full name')),
-                    const SizedBox(height: 12),
+                    const SizedBox(height: 10),
                     TextField(controller: _grade, decoration: const InputDecoration(labelText: 'Grade (e.g. 10)')),
-                    const SizedBox(height: 12),
+                    const SizedBox(height: 10),
                   ],
                   TextField(
                     controller: _email,
                     keyboardType: TextInputType.emailAddress,
                     decoration: const InputDecoration(labelText: 'School email'),
                   ),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 10),
                   TextField(
                     controller: _password,
                     obscureText: true,
@@ -1131,35 +1033,47 @@ class _AuthScreenState extends State<AuthScreen> {
                   ),
                   if (_error != null) ...[
                     const SizedBox(height: 12),
-                    Text(_error!, style: const TextStyle(color: Brand.danger)),
+                    Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: sticker(t, fill: Brand.coralSoft, border: Brand.danger, radius: 10, offset: const Offset(2,2)),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.warning_amber_rounded, color: Brand.danger, size: 18),
+                          const SizedBox(width: 8),
+                          Expanded(child: Text(_error!,
+                            style: const TextStyle(color: Brand.danger, fontWeight: FontWeight.w700))),
+                        ],
+                      ),
+                    ),
                   ],
                   const SizedBox(height: 16),
                   ElevatedButton(
                     onPressed: _busy ? null : _submit,
-                    child: Text(_isSignup ? 'Create account' : 'Sign in'),
+                    child: Text(_isSignup ? 'Create account →' : 'Sign in →'),
                   ),
+                  const SizedBox(height: 4),
                   TextButton(
                     onPressed: () => setState(() => _isSignup = !_isSignup),
+                    style: TextButton.styleFrom(foregroundColor: t.ink),
                     child: Text(_isSignup
-                        ? 'Already have an account? Sign in'
-                        : "New student? Create an account"),
+                      ? 'Already have an account? Sign in'
+                      : "New student? Create an account",
+                      style: const TextStyle(fontWeight: FontWeight.w700)),
                   ),
+                  const SizedBox(height: 18),
+                  Row(children: [
+                    Expanded(child: Container(height: 2, color: t.lineSoft)),
+                    Padding(padding: const EdgeInsets.symmetric(horizontal: 10),
+                      child: Text('DEMO ACCOUNTS',
+                        style: TextStyle(color: t.mute, fontWeight: FontWeight.w800, fontSize: 11, letterSpacing: 1.2))),
+                    Expanded(child: Container(height: 2, color: t.lineSoft)),
+                  ]),
+                  const SizedBox(height: 12),
+                  _demoBtn(t, 'Admin', 'admin@school.edu', 'admin123', UserRole.admin),
                   const SizedBox(height: 8),
-                  const Divider(),
+                  _demoBtn(t, 'Leadership', 'maya@school.edu', 'leader123', UserRole.leadership),
                   const SizedBox(height: 8),
-                  const Text(
-                    'Demo accounts',
-                    style: TextStyle(
-                      color: Brand.muted,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  _demoBtn('Admin', 'admin@school.edu', 'admin123', UserRole.admin),
-                  const SizedBox(height: 8),
-                  _demoBtn('Leadership', 'maya@school.edu', 'leader123', UserRole.leadership),
-                  const SizedBox(height: 8),
-                  _demoBtn('Student', 'alex@school.edu', 'student123', UserRole.student),
+                  _demoBtn(t, 'Student', 'alex@school.edu', 'student123', UserRole.student),
                 ],
               ),
             ),
@@ -1169,29 +1083,33 @@ class _AuthScreenState extends State<AuthScreen> {
     );
   }
 
-  Widget _demoBtn(String label, String email, String password, UserRole role) {
-    return OutlinedButton(
-      onPressed: () => _fillDemo(email, password),
-      style: OutlinedButton.styleFrom(
-        side: BorderSide(color: Brand.roleColor(role)),
-        foregroundColor: Brand.roleColor(role),
-        padding: const EdgeInsets.symmetric(vertical: 12),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(Icons.person_outline, size: 18, color: Brand.roleColor(role)),
-          const SizedBox(width: 8),
-          Text('$label · $email'),
-        ],
+  Widget _demoBtn(Tones t, String label, String email, String password, UserRole role) {
+    final c = Brand.roleColor(role);
+    return GestureDetector(
+      onTap: () => _fillDemo(email, password),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        decoration: sticker(t, fill: t.paper, border: c, radius: 12, offset: const Offset(3, 3)),
+        child: Row(children: [
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            decoration: BoxDecoration(color: c, borderRadius: BorderRadius.circular(6)),
+            child: Text(label.toUpperCase(),
+              style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w900,
+                color: Colors.white, letterSpacing: 0.8)),
+          ),
+          const SizedBox(width: 10),
+          Expanded(child: Text(email,
+            style: TextStyle(color: t.ink, fontWeight: FontWeight.w700, fontSize: 13))),
+          Icon(Icons.arrow_forward_rounded, color: t.ink, size: 18),
+        ]),
       ),
     );
   }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// HOME SHELL (role-aware bottom nav)
+// HOME SHELL
 // ─────────────────────────────────────────────────────────────────────────────
 
 class HomeShell extends StatefulWidget {
@@ -1205,41 +1123,26 @@ class _HomeShellState extends State<HomeShell> {
   int _index = 0;
 
   List<_NavTab> _tabs(AppUser u) {
-    final common = <_NavTab>[
-      _NavTab(icon: Icons.home_outlined, active: Icons.home, label: 'Home', builder: (_) => HomeFeedScreen(state: widget.state)),
-      _NavTab(icon: Icons.event_outlined, active: Icons.event, label: 'Events', builder: (_) => EventsScreen(state: widget.state)),
-      _NavTab(icon: Icons.apps_outlined, active: Icons.apps, label: 'Resources', builder: (_) => ResourcesScreen(state: widget.state)),
-      _NavTab(icon: Icons.contacts_outlined, active: Icons.contacts, label: 'Contacts', builder: (_) => ContactsScreen(state: widget.state)),
+    final base = <_NavTab>[
+      _NavTab(icon: Icons.bolt_outlined, active: Icons.bolt, label: 'Home',
+        builder: (_) => HomeFeedScreen(state: widget.state)),
+      _NavTab(icon: Icons.event_outlined, active: Icons.event, label: 'Events',
+        builder: (_) => EventsScreen(state: widget.state)),
+      _NavTab(icon: Icons.dashboard_outlined, active: Icons.dashboard, label: 'Hub',
+        builder: (_) => ResourcesScreen(state: widget.state)),
+      _NavTab(icon: Icons.contacts_outlined, active: Icons.contacts, label: 'People',
+        builder: (_) => ContactsScreen(state: widget.state)),
+      _NavTab(icon: Icons.person_outline, active: Icons.person, label: 'Me',
+        builder: (_) => ProfileScreen(state: widget.state)),
     ];
-    switch (u.role) {
-      case UserRole.student:
-        return [
-          common[0],
-          _NavTab(icon: Icons.schedule_outlined, active: Icons.schedule, label: 'Schedule', builder: (_) => ScheduleScreen(state: widget.state)),
-          common[1],
-          common[2],
-          common[3],
-          _NavTab(icon: Icons.person_outline, active: Icons.person, label: 'Profile', builder: (_) => ProfileScreen(state: widget.state)),
-        ];
-      case UserRole.leadership:
-        return [
-          common[0],
-          _NavTab(icon: Icons.add_box_outlined, active: Icons.add_box, label: 'Post', builder: (_) => LeadershipPostScreen(state: widget.state)),
-          common[1],
-          common[2],
-          common[3],
-          _NavTab(icon: Icons.person_outline, active: Icons.person, label: 'Profile', builder: (_) => ProfileScreen(state: widget.state)),
-        ];
-      case UserRole.admin:
-        return [
-          common[0],
-          _NavTab(icon: Icons.shield_outlined, active: Icons.shield, label: 'Admin', builder: (_) => AdminDashboard(state: widget.state)),
-          common[1],
-          common[2],
-          common[3],
-          _NavTab(icon: Icons.person_outline, active: Icons.person, label: 'Profile', builder: (_) => ProfileScreen(state: widget.state)),
-        ];
+    if (u.role == UserRole.leadership) {
+      base.insert(1, _NavTab(icon: Icons.add_box_outlined, active: Icons.add_box,
+        label: 'Post', builder: (_) => LeadershipPostScreen(state: widget.state)));
+    } else if (u.role == UserRole.admin) {
+      base.insert(1, _NavTab(icon: Icons.shield_outlined, active: Icons.shield,
+        label: 'Admin', builder: (_) => AdminDashboard(state: widget.state)));
     }
+    return base;
   }
 
   @override
@@ -1249,17 +1152,22 @@ class _HomeShellState extends State<HomeShell> {
     final idx = _index.clamp(0, tabs.length - 1);
     return Scaffold(
       body: tabs[idx].builder(context),
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: idx,
-        onDestinationSelected: (i) => setState(() => _index = i),
-        destinations: [
-          for (final t in tabs)
-            NavigationDestination(
-              icon: Icon(t.icon),
-              selectedIcon: Icon(t.active),
-              label: t.label,
-            ),
-        ],
+      bottomNavigationBar: Container(
+        decoration: BoxDecoration(
+          border: Border(top: BorderSide(color: Tones.of(context).line, width: 2)),
+        ),
+        child: NavigationBar(
+          selectedIndex: idx,
+          onDestinationSelected: (i) => setState(() => _index = i),
+          destinations: [
+            for (final t in tabs)
+              NavigationDestination(
+                icon: Icon(t.icon),
+                selectedIcon: Icon(t.active, color: Brand.purple),
+                label: t.label,
+              ),
+          ],
+        ),
       ),
     );
   }
@@ -1277,25 +1185,66 @@ class _NavTab {
 // SHARED WIDGETS
 // ─────────────────────────────────────────────────────────────────────────────
 
+class _IconBtn extends StatelessWidget {
+  final IconData icon;
+  final VoidCallback onTap;
+  final Tones tones;
+  final Color? bg;
+  final String? tooltip;
+  const _IconBtn({required this.icon, required this.onTap, required this.tones, this.bg, this.tooltip});
+  @override
+  Widget build(BuildContext context) {
+    final btn = GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: 42, height: 42,
+        decoration: sticker(tones, fill: bg ?? tones.paper, radius: 12, offset: const Offset(2, 2)),
+        child: Icon(icon, color: tones.ink, size: 20),
+      ),
+    );
+    return tooltip != null ? Tooltip(message: tooltip!, child: btn) : btn;
+  }
+}
+
+class ThemeToggleBtn extends StatelessWidget {
+  final AppState state;
+  const ThemeToggleBtn({super.key, required this.state});
+  @override
+  Widget build(BuildContext context) {
+    final t = Tones.of(context);
+    return Padding(
+      padding: const EdgeInsets.only(right: 12),
+      child: _IconBtn(
+        icon: state.darkMode ? Icons.light_mode : Icons.dark_mode,
+        onTap: () => state.toggleDarkMode(),
+        tones: t,
+        tooltip: state.darkMode ? 'Switch to light' : 'Switch to dark',
+      ),
+    );
+  }
+}
+
 class RoleBadge extends StatelessWidget {
   final UserRole role;
-  const RoleBadge({super.key, required this.role});
+  final bool dense;
+  const RoleBadge({super.key, required this.role, this.dense = false});
   @override
   Widget build(BuildContext context) {
     final c = Brand.roleColor(role);
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      padding: EdgeInsets.symmetric(horizontal: dense ? 7 : 9, vertical: dense ? 2 : 3),
       decoration: BoxDecoration(
-        color: c.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(999),
+        color: c,
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(color: Brand.ink, width: 1.5),
       ),
       child: Text(
         Brand.roleLabel(role).toUpperCase(),
         style: TextStyle(
-          color: c,
-          fontWeight: FontWeight.w700,
-          fontSize: 10,
-          letterSpacing: 0.6,
+          color: Brand.ink,
+          fontWeight: FontWeight.w900,
+          fontSize: dense ? 9 : 10,
+          letterSpacing: 0.8,
         ),
       ),
     );
@@ -1303,34 +1252,25 @@ class RoleBadge extends StatelessWidget {
 }
 
 class SectionHeader extends StatelessWidget {
-  final String title;
-  final String? subtitle;
+  final String label;
+  final String emoji;
   final Widget? trailing;
-  const SectionHeader({super.key, required this.title, this.subtitle, this.trailing});
+  const SectionHeader({super.key, required this.label, this.emoji = '', this.trailing});
   @override
   Widget build(BuildContext context) {
+    final t = Tones.of(context);
     return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
+      padding: const EdgeInsets.fromLTRB(20, 22, 20, 10),
       child: Row(
         children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(title,
-                    style: const TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w700,
-                      color: Brand.text,
-                    )),
-                if (subtitle != null)
-                  Padding(
-                    padding: const EdgeInsets.only(top: 2),
-                    child: Text(subtitle!, style: const TextStyle(color: Brand.muted, fontSize: 13)),
-                  ),
-              ],
-            ),
-          ),
+          if (emoji.isNotEmpty) ...[
+            Text(emoji, style: const TextStyle(fontSize: 20)),
+            const SizedBox(width: 6),
+          ],
+          Text(label,
+            style: TextStyle(fontSize: 22, fontWeight: FontWeight.w900,
+              color: t.ink, letterSpacing: -0.6)),
+          const Spacer(),
           if (trailing != null) trailing!,
         ],
       ),
@@ -1345,17 +1285,22 @@ class EmptyState extends StatelessWidget {
   const EmptyState({super.key, required this.emoji, required this.title, required this.message});
   @override
   Widget build(BuildContext context) {
+    final t = Tones.of(context);
     return Padding(
-      padding: const EdgeInsets.all(32),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Text(emoji, style: const TextStyle(fontSize: 44)),
-          const SizedBox(height: 12),
-          Text(title, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
-          const SizedBox(height: 4),
-          Text(message, textAlign: TextAlign.center, style: const TextStyle(color: Brand.muted)),
-        ],
+      padding: const EdgeInsets.all(28),
+      child: Container(
+        padding: const EdgeInsets.all(20),
+        decoration: sticker(t, fill: t.primaryWash, radius: 16, offset: const Offset(3, 3)),
+        child: Column(
+          children: [
+            Text(emoji, style: const TextStyle(fontSize: 38)),
+            const SizedBox(height: 8),
+            Text(title, style: TextStyle(fontSize: 16, fontWeight: FontWeight.w900, color: t.ink)),
+            const SizedBox(height: 4),
+            Text(message, textAlign: TextAlign.center,
+              style: TextStyle(color: t.mute, fontWeight: FontWeight.w600)),
+          ],
+        ),
       ),
     );
   }
@@ -1378,6 +1323,25 @@ String _dateLabel(DateTime t) {
   return '${months[t.month - 1]} ${t.day} · $h:$m $ampm';
 }
 
+String _monthAbbr(int m) =>
+    const ['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'][m - 1];
+
+// Palette for stickers / flyers / announcements.
+class StickerPalette {
+  static const fills = <Color>[
+    Brand.sunSoft, Brand.pinkSoft, Brand.skySoft, Brand.mintSoft, Brand.coralSoft,
+  ];
+  static const fillsDark = <Color>[
+    Brand.sunSoftDark, Brand.pinkSoftDark, Brand.skySoftDark, Brand.mintSoftDark, Brand.coralSoftDark,
+  ];
+  static const accents = <Color>[
+    Brand.sun, Brand.pink, Brand.sky, Brand.mint, Brand.coral,
+  ];
+  static Color fill(int seed, bool dark) =>
+      (dark ? fillsDark : fills)[seed.abs() % fills.length];
+  static Color accent(int seed) => accents[seed.abs() % accents.length];
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // HOME FEED
 // ─────────────────────────────────────────────────────────────────────────────
@@ -1387,108 +1351,226 @@ class HomeFeedScreen extends StatelessWidget {
   const HomeFeedScreen({super.key, required this.state});
   @override
   Widget build(BuildContext context) {
+    final t = Tones.of(context);
     final u = state.currentUser!;
     final pinned = state.announcements.where((a) => a.pinned).toList();
     final recent = state.announcements.where((a) => !a.pinned).toList();
     final upcoming = state.events.where((e) => e.date.isAfter(DateTime.now())).take(3).toList();
+    final greeting = _greeting();
 
     return Scaffold(
-      appBar: AppBar(
-        title: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('Hi, ${u.name.split(' ').first} 👋',
-                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
-            Row(
-              children: [
-                RoleBadge(role: u.role),
-                const SizedBox(width: 8),
-                Text(u.grade.isEmpty ? '' : 'Grade ${u.grade}',
-                    style: const TextStyle(color: Brand.muted, fontSize: 12)),
-              ],
-            ),
-          ],
-        ),
-      ),
       body: RefreshIndicator(
+        color: Brand.purple,
         onRefresh: () async => state.notifyListeners(),
-        child: ListView(
-          children: [
-            const SectionHeader(title: 'Quick access'),
-            SizedBox(
-              height: 96,
-              child: ListView(
-                padding: const EdgeInsets.symmetric(horizontal: 20),
-                scrollDirection: Axis.horizontal,
-                children: [
-                  _QuickTile(icon: Icons.schedule, label: 'Schedule', color: Brand.primary, onTap: () {
-                    Navigator.push(context, MaterialPageRoute(builder: (_) => ScheduleScreen(state: state)));
-                  }),
-                  _QuickTile(icon: Icons.event, label: 'Events', color: Brand.accent, onTap: () {
-                    Navigator.push(context, MaterialPageRoute(builder: (_) => EventsScreen(state: state)));
-                  }),
-                  _QuickTile(icon: Icons.confirmation_num_outlined, label: 'My tickets', color: Brand.success, onTap: () {
-                    Navigator.push(context, MaterialPageRoute(builder: (_) => MyTicketsScreen(state: state)));
-                  }),
-                  _QuickTile(icon: Icons.apps, label: 'Resources', color: Color(0xFF7C3AED), onTap: () {
-                    Navigator.push(context, MaterialPageRoute(builder: (_) => ResourcesScreen(state: state)));
-                  }),
-                  _QuickTile(icon: Icons.contacts, label: 'Contacts', color: Color(0xFF0EA5E9), onTap: () {
-                    Navigator.push(context, MaterialPageRoute(builder: (_) => ContactsScreen(state: state)));
-                  }),
-                ],
+        child: CustomScrollView(
+          slivers: [
+            SliverAppBar(
+              floating: true,
+              backgroundColor: t.bg,
+              titleSpacing: 20,
+              title: Row(children: [
+                Text('Hub',
+                  style: TextStyle(fontSize: 22, fontWeight: FontWeight.w900,
+                    color: t.ink, letterSpacing: -0.6)),
+                const Spacer(),
+                ThemeToggleBtn(state: state),
+              ]),
+            ),
+            SliverPadding(
+              padding: const EdgeInsets.fromLTRB(20, 8, 20, 0),
+              sliver: SliverToBoxAdapter(
+                child: _HeroCard(state: state, u: u, greeting: greeting),
               ),
             ),
-            if (pinned.isNotEmpty) ...[
-              const SectionHeader(title: 'Pinned'),
-              for (final a in pinned)
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
-                  child: _AnnouncementCard(a: a, state: state),
-                ),
-            ],
-            const SectionHeader(title: 'Announcements'),
-            if (recent.isEmpty)
-              const EmptyState(emoji: '📭', title: 'No announcements yet', message: 'Posts from leadership and admin will appear here.')
-            else
-              for (final a in recent)
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
-                  child: _AnnouncementCard(a: a, state: state),
-                ),
-            const SectionHeader(title: 'Upcoming events'),
-            if (upcoming.isEmpty)
-              const EmptyState(emoji: '📅', title: 'Nothing on the calendar', message: 'Check back soon!')
-            else
-              for (final e in upcoming)
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
-                  child: _EventCard(event: e, state: state),
-                ),
-            const SectionHeader(title: 'Flyers'),
-            if (state.flyers.isEmpty)
-              const EmptyState(emoji: '📄', title: 'No flyers', message: 'Leadership can post flyers from the Post tab.')
-            else
-              SizedBox(
-                height: 180,
+            SliverToBoxAdapter(
+              child: SectionHeader(label: 'Quick jump', emoji: '⚡'),
+            ),
+            SliverToBoxAdapter(
+              child: SizedBox(
+                height: 108,
                 child: ListView(
                   padding: const EdgeInsets.symmetric(horizontal: 20),
                   scrollDirection: Axis.horizontal,
                   children: [
-                    for (final f in state.flyers)
-                      Padding(
-                        padding: const EdgeInsets.only(right: 12),
-                        child: _FlyerCard(f: f, state: state),
-                      ),
+                    _QuickTile(icon: Icons.event, label: 'Events', color: Brand.sun,
+                      onTap: () => Navigator.push(context, MaterialPageRoute(
+                        builder: (_) => EventsScreen(state: state)))),
+                    _QuickTile(icon: Icons.confirmation_num_outlined, label: 'My tickets', color: Brand.mint,
+                      onTap: () => Navigator.push(context, MaterialPageRoute(
+                        builder: (_) => MyTicketsScreen(state: state)))),
+                    _QuickTile(icon: Icons.dashboard, label: 'Resources', color: Brand.sky,
+                      onTap: () => Navigator.push(context, MaterialPageRoute(
+                        builder: (_) => ResourcesScreen(state: state)))),
+                    _QuickTile(icon: Icons.contacts, label: 'Contacts', color: Brand.pink,
+                      onTap: () => Navigator.push(context, MaterialPageRoute(
+                        builder: (_) => ContactsScreen(state: state)))),
                   ],
                 ),
               ),
-            const SizedBox(height: 32),
+            ),
+            if (pinned.isNotEmpty)
+              SliverToBoxAdapter(
+                child: SectionHeader(label: 'Pinned', emoji: '📌'),
+              ),
+            if (pinned.isNotEmpty)
+              SliverPadding(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                sliver: SliverList.separated(
+                  itemCount: pinned.length,
+                  separatorBuilder: (_, __) => const SizedBox(height: 14),
+                  itemBuilder: (_, i) => _AnnouncementCard(a: pinned[i], state: state),
+                ),
+              ),
+            SliverToBoxAdapter(child: SectionHeader(label: 'Announcements', emoji: '📣')),
+            if (recent.isEmpty)
+              const SliverToBoxAdapter(
+                child: EmptyState(emoji: '📭', title: 'No announcements yet',
+                  message: 'Posts from leadership and admin will land here.'),
+              )
+            else
+              SliverPadding(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                sliver: SliverList.separated(
+                  itemCount: recent.length,
+                  separatorBuilder: (_, __) => const SizedBox(height: 14),
+                  itemBuilder: (_, i) => _AnnouncementCard(a: recent[i], state: state),
+                ),
+              ),
+            SliverToBoxAdapter(child: SectionHeader(label: 'Upcoming', emoji: '🗓️')),
+            if (upcoming.isEmpty)
+              const SliverToBoxAdapter(
+                child: EmptyState(emoji: '📅', title: 'Nothing on the calendar', message: 'Check back soon.'),
+              )
+            else
+              SliverPadding(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                sliver: SliverList.separated(
+                  itemCount: upcoming.length,
+                  separatorBuilder: (_, __) => const SizedBox(height: 12),
+                  itemBuilder: (_, i) => _EventCard(event: upcoming[i], state: state),
+                ),
+              ),
+            SliverToBoxAdapter(child: SectionHeader(label: 'Flyers', emoji: '📄')),
+            if (state.flyers.isEmpty)
+              const SliverToBoxAdapter(
+                child: EmptyState(emoji: '🪧', title: 'No flyers yet',
+                  message: 'Leadership can post flyers from the Post tab.'),
+              )
+            else
+              SliverToBoxAdapter(
+                child: SizedBox(
+                  height: 210,
+                  child: ListView.builder(
+                    padding: const EdgeInsets.fromLTRB(20, 4, 20, 12),
+                    scrollDirection: Axis.horizontal,
+                    itemCount: state.flyers.length,
+                    itemBuilder: (_, i) {
+                      final f = state.flyers[i];
+                      final tilt = ((i.isEven ? -1 : 1) * (0.02 + (i % 3) * 0.01));
+                      return Padding(
+                        padding: const EdgeInsets.only(right: 16),
+                        child: Transform.rotate(angle: tilt, child: _FlyerCard(f: f, state: state)),
+                      );
+                    },
+                  ),
+                ),
+              ),
+            const SliverToBoxAdapter(child: SizedBox(height: 40)),
           ],
         ),
       ),
     );
   }
+
+  String _greeting() {
+    final h = DateTime.now().hour;
+    if (h < 5) return 'Late night,';
+    if (h < 12) return 'Good morning,';
+    if (h < 17) return 'Hey,';
+    if (h < 21) return 'Good evening,';
+    return 'Hey,';
+  }
+}
+
+class _HeroCard extends StatelessWidget {
+  final AppState state;
+  final AppUser u;
+  final String greeting;
+  const _HeroCard({required this.state, required this.u, required this.greeting});
+  @override
+  Widget build(BuildContext context) {
+    final t = Tones.of(context);
+    return Container(
+      decoration: sticker(t, fill: Brand.purple, radius: 22, offset: const Offset(5, 5)),
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 56, height: 56,
+                decoration: BoxDecoration(
+                  color: Brand.lime,
+                  border: Border.all(color: Brand.ink, width: 2),
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: Center(child: Text(u.avatarEmoji, style: const TextStyle(fontSize: 30))),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(greeting,
+                      style: const TextStyle(color: Colors.white70,
+                        fontWeight: FontWeight.w700, fontSize: 13)),
+                    Text(u.name.split(' ').first,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(color: Colors.white, fontSize: 28,
+                        fontWeight: FontWeight.w900, letterSpacing: -0.8)),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          Row(
+            children: [
+              RoleBadge(role: u.role),
+              const SizedBox(width: 8),
+              if (u.grade.isNotEmpty)
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.18),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: Text('GRADE ${u.grade}'.toUpperCase(),
+                    style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w900,
+                      fontSize: 10, letterSpacing: 0.8)),
+                ),
+              const Spacer(),
+              _miniStat('📣', '${state.announcements.length}'),
+              const SizedBox(width: 10),
+              _miniStat('🎟️', '${state.tickets.where((t) => t.userId == u.id).length}'),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _miniStat(String emoji, String value) => Row(
+    mainAxisSize: MainAxisSize.min,
+    children: [
+      Text(emoji, style: const TextStyle(fontSize: 14)),
+      const SizedBox(width: 4),
+      Text(value, style: const TextStyle(color: Colors.white,
+        fontWeight: FontWeight.w900, fontSize: 14)),
+    ],
+  );
 }
 
 class _QuickTile extends StatelessWidget {
@@ -1499,32 +1581,23 @@ class _QuickTile extends StatelessWidget {
   const _QuickTile({required this.icon, required this.label, required this.color, required this.onTap});
   @override
   Widget build(BuildContext context) {
+    final t = Tones.of(context);
     return Padding(
       padding: const EdgeInsets.only(right: 12),
-      child: InkWell(
+      child: GestureDetector(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(14),
         child: Container(
-          width: 92,
+          width: 110,
           padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(
-            color: Brand.card,
-            border: Border.all(color: Brand.border),
-            borderRadius: BorderRadius.circular(14),
-          ),
+          decoration: sticker(t, fill: color, radius: 16, offset: const Offset(3, 3)),
           child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: color.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: Icon(icon, color: color, size: 22),
-              ),
-              const SizedBox(height: 6),
-              Text(label, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+              Icon(icon, color: Brand.ink, size: 28),
+              Text(label,
+                style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w900,
+                  color: Brand.ink, letterSpacing: -0.2)),
             ],
           ),
         ),
@@ -1539,51 +1612,67 @@ class _AnnouncementCard extends StatelessWidget {
   const _AnnouncementCard({required this.a, required this.state});
   @override
   Widget build(BuildContext context) {
+    final t = Tones.of(context);
     final u = state.currentUser!;
     final canDelete = u.role == UserRole.admin || u.id == a.authorId;
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
+    final accent = StickerPalette.accent(a.colorSeed);
+    final fill = StickerPalette.fill(a.colorSeed, t.isDark);
+    return Container(
+      decoration: sticker(t, fill: fill, radius: 18, offset: const Offset(4, 4)),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // colored "tape" band at top
+          Container(
+            height: 10,
+            decoration: BoxDecoration(
+              color: accent,
+              borderRadius: const BorderRadius.only(
+                topLeft: Radius.circular(16), topRight: Radius.circular(16),
+              ),
+              border: Border(bottom: BorderSide(color: t.line, width: 2)),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 14, 12, 14),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                if (a.pinned)
-                  const Padding(
-                    padding: EdgeInsets.only(right: 6),
-                    child: Icon(Icons.push_pin, size: 16, color: Brand.danger),
-                  ),
-                Expanded(
-                  child: Text(a.title,
-                      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+                Row(
+                  children: [
+                    if (a.pinned) ...[
+                      Transform.rotate(angle: -0.3,
+                        child: const Icon(Icons.push_pin, size: 18, color: Brand.danger)),
+                      const SizedBox(width: 6),
+                    ],
+                    Expanded(child: Text(a.title,
+                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900,
+                        color: t.ink, letterSpacing: -0.4))),
+                    if (canDelete)
+                      GestureDetector(
+                        onTap: () => state.deleteAnnouncement(a.id),
+                        child: Icon(Icons.close, size: 18, color: t.mute),
+                      ),
+                  ],
                 ),
-                if (canDelete)
-                  IconButton(
-                    icon: const Icon(Icons.delete_outline, size: 20),
-                    onPressed: () => state.deleteAnnouncement(a.id),
-                    color: Brand.muted,
-                  ),
+                const SizedBox(height: 4),
+                Text(a.body, style: TextStyle(color: t.ink, height: 1.4, fontSize: 14)),
+                const SizedBox(height: 10),
+                Row(
+                  children: [
+                    RoleBadge(role: a.authorRole, dense: true),
+                    const SizedBox(width: 8),
+                    Flexible(child: Text(
+                      '${a.authorName} · ${_timeAgo(a.createdAt)}',
+                      style: TextStyle(color: t.mute, fontSize: 12, fontWeight: FontWeight.w700),
+                      overflow: TextOverflow.ellipsis,
+                    )),
+                  ],
+                ),
               ],
             ),
-            const SizedBox(height: 4),
-            Text(a.body, style: const TextStyle(color: Brand.text, height: 1.4)),
-            const SizedBox(height: 10),
-            Row(
-              children: [
-                RoleBadge(role: a.authorRole),
-                const SizedBox(width: 8),
-                Flexible(
-                  child: Text(
-                    '${a.authorName} · ${_timeAgo(a.createdAt)}',
-                    style: const TextStyle(color: Brand.muted, fontSize: 12),
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
@@ -1600,10 +1689,12 @@ class _FlyerCard extends StatelessWidget {
     [Color(0xFFFEE2E2), Color(0xFFF87171)],
     [Color(0xFFD1FAE5), Color(0xFF34D399)],
     [Color(0xFFE9D5FF), Color(0xFFA78BFA)],
+    [Color(0xFFFCE7F3), Color(0xFFF472B6)],
   ];
 
   @override
   Widget build(BuildContext context) {
+    final t = Tones.of(context);
     final pair = _palette[f.colorSeed.abs() % _palette.length];
     final u = state.currentUser!;
     final canDelete = u.role == UserRole.admin || u.id == f.authorId;
@@ -1611,155 +1702,51 @@ class _FlyerCard extends StatelessWidget {
       onTap: () => showDialog(
         context: context,
         builder: (_) => AlertDialog(
-          title: Text(f.title),
-          content: Text('${f.description}\n\nPosted by ${f.authorName} · ${_timeAgo(f.createdAt)}'),
+          backgroundColor: t.paper,
+          title: Text(f.title, style: TextStyle(color: t.ink, fontWeight: FontWeight.w900)),
+          content: Text('${f.description}\n\nPosted by ${f.authorName} · ${_timeAgo(f.createdAt)}',
+            style: TextStyle(color: t.ink)),
           actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text('Close'))],
         ),
       ),
       child: Container(
-        width: 230,
+        width: 220,
         decoration: BoxDecoration(
           gradient: LinearGradient(colors: pair, begin: Alignment.topLeft, end: Alignment.bottomRight),
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(color: t.line, width: 2),
+          boxShadow: [BoxShadow(color: t.line, offset: const Offset(4, 4), blurRadius: 0)],
         ),
         padding: const EdgeInsets.all(14),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
-              children: [
-                Text(f.emoji, style: const TextStyle(fontSize: 28)),
-                const Spacer(),
-                if (canDelete)
-                  InkWell(
-                    onTap: () => state.deleteFlyer(f.id),
-                    child: const Padding(
-                      padding: EdgeInsets.all(4),
-                      child: Icon(Icons.close, size: 18, color: Brand.text),
-                    ),
-                  ),
-              ],
-            ),
+            Row(children: [
+              Container(
+                padding: const EdgeInsets.all(6),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: Brand.ink, width: 1.5),
+                ),
+                child: Text(f.emoji, style: const TextStyle(fontSize: 22)),
+              ),
+              const Spacer(),
+              if (canDelete)
+                GestureDetector(
+                  onTap: () => state.deleteFlyer(f.id),
+                  child: const Icon(Icons.close, size: 18, color: Brand.ink),
+                ),
+            ]),
             const Spacer(),
             Text(f.title,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: Brand.text)),
-            const SizedBox(height: 4),
+              maxLines: 2, overflow: TextOverflow.ellipsis,
+              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w900,
+                color: Brand.ink, letterSpacing: -0.4, height: 1.05)),
+            const SizedBox(height: 6),
             Text(f.description,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(color: Brand.text, fontSize: 12)),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// SCHEDULE
-// ─────────────────────────────────────────────────────────────────────────────
-
-class ScheduleScreen extends StatelessWidget {
-  final AppState state;
-  const ScheduleScreen({super.key, required this.state});
-  @override
-  Widget build(BuildContext context) {
-    final u = state.currentUser!;
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('My schedule'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.add),
-            onPressed: () => _editItem(context, null),
-          ),
-        ],
-      ),
-      body: u.schedule.isEmpty
-          ? const EmptyState(emoji: '🗓️', title: 'No classes yet', message: 'Tap + to add your first period.')
-          : ListView.separated(
-              padding: const EdgeInsets.all(20),
-              itemCount: u.schedule.length,
-              separatorBuilder: (_, __) => const SizedBox(height: 10),
-              itemBuilder: (_, i) {
-                final s = u.schedule[i];
-                return Card(
-                  child: ListTile(
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-                    leading: CircleAvatar(
-                      backgroundColor: Brand.primaryLight,
-                      child: Text(s.period, style: const TextStyle(color: Brand.primary, fontWeight: FontWeight.w700)),
-                    ),
-                    title: Text(s.className, style: const TextStyle(fontWeight: FontWeight.w700)),
-                    subtitle: Text('${s.teacher} · Room ${s.room}\n${s.time}', style: const TextStyle(height: 1.4)),
-                    isThreeLine: true,
-                    trailing: PopupMenuButton<String>(
-                      onSelected: (v) {
-                        if (v == 'edit') _editItem(context, s);
-                        if (v == 'delete') state.removeScheduleItem(s.id);
-                      },
-                      itemBuilder: (_) => const [
-                        PopupMenuItem(value: 'edit', child: Text('Edit')),
-                        PopupMenuItem(value: 'delete', child: Text('Delete')),
-                      ],
-                    ),
-                  ),
-                );
-              },
-            ),
-    );
-  }
-
-  void _editItem(BuildContext context, ScheduleItem? existing) {
-    final period = TextEditingController(text: existing?.period ?? '');
-    final cls = TextEditingController(text: existing?.className ?? '');
-    final teacher = TextEditingController(text: existing?.teacher ?? '');
-    final room = TextEditingController(text: existing?.room ?? '');
-    final time = TextEditingController(text: existing?.time ?? '');
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
-      builder: (ctx) => Padding(
-        padding: EdgeInsets.only(
-          left: 20, right: 20, top: 20,
-          bottom: 20 + MediaQuery.of(ctx).viewInsets.bottom,
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Text(existing == null ? 'Add class' : 'Edit class',
-                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
-            const SizedBox(height: 12),
-            TextField(controller: period, decoration: const InputDecoration(labelText: 'Period (1, 2, ...)')),
-            const SizedBox(height: 10),
-            TextField(controller: cls, decoration: const InputDecoration(labelText: 'Class name')),
-            const SizedBox(height: 10),
-            TextField(controller: teacher, decoration: const InputDecoration(labelText: 'Teacher')),
-            const SizedBox(height: 10),
-            TextField(controller: room, decoration: const InputDecoration(labelText: 'Room')),
-            const SizedBox(height: 10),
-            TextField(controller: time, decoration: const InputDecoration(labelText: 'Time (e.g. 8:00 – 8:50)')),
-            const SizedBox(height: 16),
-            ElevatedButton(
-              onPressed: () {
-                if (cls.text.trim().isEmpty || period.text.trim().isEmpty) return;
-                state.upsertScheduleItem(ScheduleItem(
-                  id: existing?.id ?? _newId(),
-                  period: period.text.trim(),
-                  className: cls.text.trim(),
-                  teacher: teacher.text.trim(),
-                  room: room.text.trim(),
-                  time: time.text.trim(),
-                ));
-                Navigator.pop(ctx);
-              },
-              child: Text(existing == null ? 'Add' : 'Save'),
-            ),
+              maxLines: 3, overflow: TextOverflow.ellipsis,
+              style: const TextStyle(color: Brand.ink, fontSize: 12, fontWeight: FontWeight.w600)),
           ],
         ),
       ),
@@ -1778,8 +1765,10 @@ class EventsScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final u = state.currentUser!;
     final canCreate = u.role == UserRole.leadership || u.role == UserRole.admin;
-    final upcoming = state.events.where((e) => e.date.isAfter(DateTime.now())).toList()..sort((a,b)=>a.date.compareTo(b.date));
-    final past = state.events.where((e) => !e.date.isAfter(DateTime.now())).toList()..sort((a,b)=>b.date.compareTo(a.date));
+    final upcoming = state.events.where((e) => e.date.isAfter(DateTime.now())).toList()
+      ..sort((a, b) => a.date.compareTo(b.date));
+    final past = state.events.where((e) => !e.date.isAfter(DateTime.now())).toList()
+      ..sort((a, b) => b.date.compareTo(a.date));
 
     return Scaffold(
       appBar: AppBar(
@@ -1788,21 +1777,29 @@ class EventsScreen extends StatelessWidget {
           IconButton(
             icon: const Icon(Icons.confirmation_num_outlined),
             tooltip: 'My tickets',
-            onPressed: () => Navigator.push(
-              context,
-              MaterialPageRoute(builder: (_) => MyTicketsScreen(state: state)),
-            ),
+            onPressed: () => Navigator.push(context, MaterialPageRoute(
+              builder: (_) => MyTicketsScreen(state: state))),
           ),
-          if (canCreate)
-            IconButton(
-              icon: const Icon(Icons.add),
-              onPressed: () => _createEvent(context),
-            ),
+          ThemeToggleBtn(state: state),
         ],
       ),
+      floatingActionButton: canCreate
+          ? FloatingActionButton.extended(
+              backgroundColor: Brand.lime,
+              foregroundColor: Brand.ink,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(14),
+                side: const BorderSide(color: Brand.ink, width: 2),
+              ),
+              onPressed: () => _createEvent(context),
+              icon: const Icon(Icons.add),
+              label: const Text('New event',
+                style: TextStyle(fontWeight: FontWeight.w900)),
+            )
+          : null,
       body: ListView(
         children: [
-          const SectionHeader(title: 'Upcoming'),
+          const SectionHeader(label: 'Upcoming', emoji: '🔥'),
           if (upcoming.isEmpty)
             const EmptyState(emoji: '📅', title: 'Nothing upcoming', message: 'Check back soon.')
           else
@@ -1812,14 +1809,14 @@ class EventsScreen extends StatelessWidget {
                 child: _EventCard(event: e, state: state),
               ),
           if (past.isNotEmpty) ...[
-            const SectionHeader(title: 'Past'),
+            const SectionHeader(label: 'Past', emoji: '✓'),
             for (final e in past)
               Padding(
                 padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
                 child: _EventCard(event: e, state: state, past: true),
               ),
           ],
-          const SizedBox(height: 32),
+          const SizedBox(height: 80),
         ],
       ),
     );
@@ -1836,20 +1833,21 @@ class EventsScreen extends StatelessWidget {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
+      backgroundColor: Tones.of(context).paper,
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setSt) => Padding(
-          padding: EdgeInsets.only(
-            left: 20, right: 20, top: 20,
-            bottom: 20 + MediaQuery.of(ctx).viewInsets.bottom,
-          ),
+          padding: EdgeInsets.only(left: 20, right: 20, top: 20,
+            bottom: 20 + MediaQuery.of(ctx).viewInsets.bottom),
           child: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                const Text('New event', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
-                const SizedBox(height: 12),
+                Text('New event',
+                  style: TextStyle(fontSize: 22, fontWeight: FontWeight.w900,
+                    color: Tones.of(ctx).ink, letterSpacing: -0.6)),
+                const SizedBox(height: 14),
                 TextField(controller: title, decoration: const InputDecoration(labelText: 'Title')),
                 const SizedBox(height: 10),
                 TextField(controller: desc, maxLines: 3, decoration: const InputDecoration(labelText: 'Description')),
@@ -1862,16 +1860,13 @@ class EventsScreen extends StatelessWidget {
                   trailing: const Icon(Icons.calendar_today_outlined),
                   onTap: () async {
                     final d = await showDatePicker(
-                      context: ctx,
-                      initialDate: date,
+                      context: ctx, initialDate: date,
                       firstDate: DateTime.now(),
                       lastDate: DateTime.now().add(const Duration(days: 365)),
                     );
                     if (d == null) return;
-                    final t = await showTimePicker(
-                      // ignore: use_build_context_synchronously
-                      context: ctx, initialTime: TimeOfDay.fromDateTime(date),
-                    );
+                    // ignore: use_build_context_synchronously
+                    final t = await showTimePicker(context: ctx, initialTime: TimeOfDay.fromDateTime(date));
                     setSt(() => date = DateTime(d.year, d.month, d.day, t?.hour ?? 19, t?.minute ?? 0));
                   },
                 ),
@@ -1879,24 +1874,24 @@ class EventsScreen extends StatelessWidget {
                   contentPadding: EdgeInsets.zero,
                   title: const Text('Ticketed event'),
                   value: ticketed,
+                  activeThumbColor: Brand.purple,
                   onChanged: (v) => setSt(() => ticketed = v),
                 ),
                 if (ticketed) ...[
-                  TextField(controller: price, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'Ticket price (\$)')),
+                  TextField(controller: price, keyboardType: TextInputType.number,
+                    decoration: const InputDecoration(labelText: 'Ticket price (\$)')),
                   const SizedBox(height: 10),
-                  TextField(controller: qty, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'Tickets available')),
+                  TextField(controller: qty, keyboardType: TextInputType.number,
+                    decoration: const InputDecoration(labelText: 'Tickets available')),
                 ],
                 const SizedBox(height: 16),
                 ElevatedButton(
                   onPressed: () {
                     if (title.text.trim().isEmpty) return;
                     state.createEvent(Event(
-                      id: _newId(),
-                      title: title.text.trim(),
-                      description: desc.text.trim(),
-                      date: date,
-                      location: location.text.trim(),
-                      ticketed: ticketed,
+                      id: _newId(), title: title.text.trim(),
+                      description: desc.text.trim(), date: date,
+                      location: location.text.trim(), ticketed: ticketed,
                       ticketPrice: double.tryParse(price.text) ?? 0,
                       ticketsAvailable: int.tryParse(qty.text) ?? 0,
                     ));
@@ -1920,112 +1915,143 @@ class _EventCard extends StatelessWidget {
   const _EventCard({required this.event, required this.state, this.past = false});
   @override
   Widget build(BuildContext context) {
+    final t = Tones.of(context);
     final u = state.currentUser!;
-    final hasTicket = state.tickets.any((t) => t.eventId == event.id && t.userId == u.id);
+    final hasTicket = state.tickets.any((tk) => tk.eventId == event.id && tk.userId == u.id);
     final soldOut = event.ticketed && event.ticketsSold >= event.ticketsAvailable;
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+    final stub = past ? t.lineSoft : Brand.lime;
+    return Container(
+      decoration: sticker(t, fill: t.paper, radius: 18, offset: const Offset(4, 4)),
+      child: IntrinsicHeight(
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Row(
-              children: [
-                Container(
-                  width: 52,
-                  height: 52,
-                  decoration: BoxDecoration(
-                    color: past ? Brand.border : Brand.primaryLight,
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Text(_monthAbbr(event.date.month),
-                            style: TextStyle(color: past ? Brand.muted : Brand.primary, fontSize: 10, fontWeight: FontWeight.w700)),
-                        Text(event.date.day.toString(),
-                            style: TextStyle(color: past ? Brand.muted : Brand.primary, fontSize: 18, fontWeight: FontWeight.w800)),
-                      ],
-                    ),
-                  ),
+            // ticket-stub date column
+            Container(
+              width: 76,
+              decoration: BoxDecoration(
+                color: stub,
+                borderRadius: const BorderRadius.only(
+                  topLeft: Radius.circular(16), bottomLeft: Radius.circular(16),
                 ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(event.title, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
-                      const SizedBox(height: 2),
-                      Text('${_dateLabel(event.date)} · ${event.location}',
-                          style: const TextStyle(color: Brand.muted, fontSize: 12)),
-                    ],
-                  ),
-                ),
-                if (u.role == UserRole.admin)
-                  IconButton(
-                    icon: const Icon(Icons.delete_outline, size: 20, color: Brand.muted),
-                    onPressed: () => state.deleteEvent(event.id),
-                  ),
-              ],
-            ),
-            if (event.description.isNotEmpty) ...[
-              const SizedBox(height: 8),
-              Text(event.description, style: const TextStyle(height: 1.4)),
-            ],
-            if (event.ticketed) ...[
-              const SizedBox(height: 12),
-              Row(
+                border: Border(right: BorderSide(color: t.line, width: 2, style: BorderStyle.solid)),
+              ),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Text('\$${event.ticketPrice.toStringAsFixed(2)}',
-                      style: const TextStyle(fontWeight: FontWeight.w700, color: Brand.success, fontSize: 16)),
-                  const SizedBox(width: 8),
-                  Text('${event.ticketsAvailable - event.ticketsSold} left',
-                      style: const TextStyle(color: Brand.muted, fontSize: 12)),
-                  const Spacer(),
-                  if (past)
-                    const Text('Ended', style: TextStyle(color: Brand.muted, fontWeight: FontWeight.w600))
-                  else if (hasTicket)
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                      decoration: BoxDecoration(
-                        color: Brand.success.withValues(alpha: 0.12),
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: const Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(Icons.check, size: 16, color: Brand.success),
-                          SizedBox(width: 4),
-                          Text('Got ticket', style: TextStyle(color: Brand.success, fontWeight: FontWeight.w700)),
-                        ],
-                      ),
-                    )
-                  else
-                    ElevatedButton(
-                      onPressed: soldOut
-                          ? null
-                          : () {
+                  Text(_monthAbbr(event.date.month),
+                    style: TextStyle(color: Brand.ink, fontSize: 12,
+                      fontWeight: FontWeight.w900, letterSpacing: 1)),
+                  Text(event.date.day.toString(),
+                    style: const TextStyle(color: Brand.ink, fontSize: 32,
+                      fontWeight: FontWeight.w900, height: 1)),
+                  const SizedBox(height: 4),
+                  Text(_weekday(event.date),
+                    style: const TextStyle(color: Brand.ink, fontSize: 10,
+                      fontWeight: FontWeight.w800, letterSpacing: 0.6)),
+                ],
+              ),
+            ),
+            // body
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.all(14),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(children: [
+                      Expanded(child: Text(event.title,
+                        style: TextStyle(fontSize: 17, fontWeight: FontWeight.w900,
+                          color: t.ink, letterSpacing: -0.3))),
+                      if (u.role == UserRole.admin)
+                        GestureDetector(
+                          onTap: () => state.deleteEvent(event.id),
+                          child: Icon(Icons.close, size: 18, color: t.mute),
+                        ),
+                    ]),
+                    const SizedBox(height: 4),
+                    Text('${_dateLabel(event.date)} · ${event.location}',
+                      style: TextStyle(color: t.mute, fontSize: 12, fontWeight: FontWeight.w700)),
+                    if (event.description.isNotEmpty) ...[
+                      const SizedBox(height: 6),
+                      Text(event.description,
+                        maxLines: 2, overflow: TextOverflow.ellipsis,
+                        style: TextStyle(color: t.ink, height: 1.4, fontSize: 13)),
+                    ],
+                    if (event.ticketed) ...[
+                      const SizedBox(height: 10),
+                      Row(children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: Brand.mint,
+                            borderRadius: BorderRadius.circular(6),
+                            border: Border.all(color: Brand.ink, width: 1.5),
+                          ),
+                          child: Text('\$${event.ticketPrice.toStringAsFixed(2)}',
+                            style: const TextStyle(fontWeight: FontWeight.w900, color: Brand.ink, fontSize: 13)),
+                        ),
+                        const SizedBox(width: 8),
+                        Text('${event.ticketsAvailable - event.ticketsSold} left',
+                          style: TextStyle(color: t.mute, fontSize: 11, fontWeight: FontWeight.w700)),
+                        const Spacer(),
+                        if (past)
+                          Text('Ended', style: TextStyle(color: t.mute, fontWeight: FontWeight.w800))
+                        else if (hasTicket)
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                            decoration: BoxDecoration(
+                              color: Brand.mint,
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(color: Brand.ink, width: 1.5),
+                            ),
+                            child: const Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(Icons.check, size: 14, color: Brand.ink),
+                                SizedBox(width: 4),
+                                Text('Got it', style: TextStyle(color: Brand.ink, fontWeight: FontWeight.w900, fontSize: 12)),
+                              ],
+                            ),
+                          )
+                        else
+                          GestureDetector(
+                            onTap: soldOut ? null : () {
                               final err = state.buyTicket(event.id);
                               if (err != null) {
                                 ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(err)));
                               } else {
-                                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Ticket purchased! See My tickets.')));
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(content: Text('🎟️ Ticket purchased!')));
                               }
                             },
-                      child: Text(soldOut ? 'Sold out' : 'Buy ticket'),
-                    ),
-                ],
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+                              decoration: BoxDecoration(
+                                color: soldOut ? t.lineSoft : Brand.purple,
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(color: Brand.ink, width: 1.5),
+                              ),
+                              child: Text(soldOut ? 'Sold out' : 'Buy →',
+                                style: TextStyle(
+                                  color: soldOut ? t.mute : Colors.white,
+                                  fontWeight: FontWeight.w900, fontSize: 13)),
+                            ),
+                          ),
+                      ]),
+                    ],
+                  ],
+                ),
               ),
-            ],
+            ),
           ],
         ),
       ),
     );
   }
 
-  static String _monthAbbr(int m) =>
-      const ['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'][m - 1];
+  static String _weekday(DateTime d) =>
+      const ['MON','TUE','WED','THU','FRI','SAT','SUN'][(d.weekday - 1) % 7];
 }
 
 class MyTicketsScreen extends StatelessWidget {
@@ -2033,50 +2059,56 @@ class MyTicketsScreen extends StatelessWidget {
   const MyTicketsScreen({super.key, required this.state});
   @override
   Widget build(BuildContext context) {
+    final t = Tones.of(context);
     final u = state.currentUser!;
-    final mine = state.tickets.where((t) => t.userId == u.id).toList()
+    final mine = state.tickets.where((tk) => tk.userId == u.id).toList()
       ..sort((a, b) => b.purchasedAt.compareTo(a.purchasedAt));
     return Scaffold(
-      appBar: AppBar(title: const Text('My tickets')),
+      appBar: AppBar(
+        title: const Text('My tickets'),
+        actions: [ThemeToggleBtn(state: state)],
+      ),
       body: mine.isEmpty
           ? const EmptyState(emoji: '🎟️', title: 'No tickets yet', message: 'Buy tickets from the Events tab.')
           : ListView.separated(
               padding: const EdgeInsets.all(20),
               itemCount: mine.length,
-              separatorBuilder: (_, __) => const SizedBox(height: 12),
+              separatorBuilder: (_, __) => const SizedBox(height: 14),
               itemBuilder: (_, i) {
-                final t = mine[i];
-                final e = state.events.cast<Event?>().firstWhere((ev) => ev!.id == t.eventId, orElse: () => null);
+                final tk = mine[i];
+                final e = state.events.cast<Event?>().firstWhere(
+                  (ev) => ev!.id == tk.eventId, orElse: () => null);
                 if (e == null) return const SizedBox.shrink();
-                return Card(
-                  child: Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Row(
-                      children: [
-                        const Icon(Icons.confirmation_num, size: 36, color: Brand.success),
-                        const SizedBox(width: 14),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(e.title, style: const TextStyle(fontWeight: FontWeight.w700)),
-                              Text(_dateLabel(e.date), style: const TextStyle(color: Brand.muted, fontSize: 12)),
-                              const SizedBox(height: 6),
-                              Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                decoration: BoxDecoration(
-                                  color: Brand.primaryLight,
-                                  borderRadius: BorderRadius.circular(8),
-                                ),
-                                child: Text(t.code,
-                                    style: const TextStyle(fontFamily: 'monospace', color: Brand.primary, fontWeight: FontWeight.w700)),
-                              ),
-                            ],
+                return Container(
+                  decoration: sticker(t, fill: Brand.lime, radius: 16, offset: const Offset(4, 4)),
+                  padding: const EdgeInsets.all(16),
+                  child: Row(children: [
+                    const Icon(Icons.confirmation_num, size: 40, color: Brand.ink),
+                    const SizedBox(width: 14),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(e.title,
+                            style: const TextStyle(fontWeight: FontWeight.w900, color: Brand.ink, fontSize: 16)),
+                          Text(_dateLabel(e.date),
+                            style: const TextStyle(color: Brand.ink, fontSize: 12, fontWeight: FontWeight.w700)),
+                          const SizedBox(height: 8),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(color: Brand.ink, width: 1.5),
+                            ),
+                            child: Text(tk.code,
+                              style: const TextStyle(fontFamily: 'monospace',
+                                color: Brand.ink, fontWeight: FontWeight.w900, fontSize: 13)),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
-                  ),
+                  ]),
                 );
               },
             ),
@@ -2101,26 +2133,29 @@ class ResourcesScreen extends StatelessWidget {
     }
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Resources'),
+        title: const Text('Hub'),
         actions: [
           if (canPost)
-            IconButton(
-              icon: const Icon(Icons.add_link),
-              onPressed: () => _addResource(context),
-            ),
+            IconButton(icon: const Icon(Icons.add_link), onPressed: () => _addResource(context)),
+          ThemeToggleBtn(state: state),
         ],
       ),
       body: state.resources.isEmpty
-          ? const EmptyState(emoji: '🔗', title: 'No resources yet', message: 'Leadership or admin can add quick links to Classroom, Clever, library, and more.')
+          ? const EmptyState(emoji: '🔗', title: 'No resources yet',
+              message: 'Leadership or admin can add quick links to Classroom, Clever, library, and more.')
           : ListView(
-              padding: const EdgeInsets.all(20),
+              padding: const EdgeInsets.fromLTRB(20, 8, 20, 32),
               children: [
                 for (final entry in byCategory.entries) ...[
                   Padding(
-                    padding: const EdgeInsets.fromLTRB(4, 8, 4, 8),
-                    child: Text(entry.key,
-                        style: const TextStyle(
-                            fontSize: 14, fontWeight: FontWeight.w700, color: Brand.muted)),
+                    padding: const EdgeInsets.fromLTRB(0, 16, 0, 10),
+                    child: Row(children: [
+                      Text(_emoji(entry.key), style: const TextStyle(fontSize: 20)),
+                      const SizedBox(width: 6),
+                      Text(entry.key.toUpperCase(),
+                        style: TextStyle(fontSize: 13, fontWeight: FontWeight.w900,
+                          color: Tones.of(context).ink, letterSpacing: 1)),
+                    ]),
                   ),
                   GridView.count(
                     crossAxisCount: 2,
@@ -2134,11 +2169,20 @@ class ResourcesScreen extends StatelessWidget {
                         _ResourceTile(r: r, state: state),
                     ],
                   ),
-                  const SizedBox(height: 8),
                 ],
               ],
             ),
     );
+  }
+
+  String _emoji(String cat) {
+    switch (cat) {
+      case 'Classroom': return '📚';
+      case 'Clever': return '🪪';
+      case 'Library': return '📖';
+      case 'Sports': return '🏈';
+      default: return '🔗';
+    }
   }
 
   void _addResource(BuildContext context) {
@@ -2150,19 +2194,20 @@ class ResourcesScreen extends StatelessWidget {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
+      backgroundColor: Tones.of(context).paper,
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setSt) => Padding(
-          padding: EdgeInsets.only(
-            left: 20, right: 20, top: 20,
-            bottom: 20 + MediaQuery.of(ctx).viewInsets.bottom,
-          ),
+          padding: EdgeInsets.only(left: 20, right: 20, top: 20,
+            bottom: 20 + MediaQuery.of(ctx).viewInsets.bottom),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              const Text('Add resource link', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
-              const SizedBox(height: 12),
+              Text('Add resource link',
+                style: TextStyle(fontSize: 22, fontWeight: FontWeight.w900,
+                  color: Tones.of(ctx).ink, letterSpacing: -0.6)),
+              const SizedBox(height: 14),
               TextField(controller: title, decoration: const InputDecoration(labelText: 'Title')),
               const SizedBox(height: 10),
               TextField(controller: url, decoration: const InputDecoration(labelText: 'URL (https://...)')),
@@ -2207,32 +2252,34 @@ class _ResourceTile extends StatelessWidget {
     }
   }
 
-  Color _color() {
+  Color _accent() {
     switch (r.category) {
-      case 'Classroom': return Brand.primary;
-      case 'Clever': return const Color(0xFF7C3AED);
-      case 'Library': return const Color(0xFF0EA5E9);
-      case 'Sports': return Brand.accent;
-      default: return Brand.muted;
+      case 'Classroom': return Brand.sky;
+      case 'Clever': return Brand.purple;
+      case 'Library': return Brand.sun;
+      case 'Sports': return Brand.coral;
+      default: return Brand.mint;
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final t = Tones.of(context);
     final u = state.currentUser!;
     final canDelete = u.role == UserRole.admin || u.id == r.authorId;
-    return InkWell(
+    return GestureDetector(
       onTap: () => showDialog(
         context: context,
         builder: (_) => AlertDialog(
-          title: Text(r.title),
+          backgroundColor: t.paper,
+          title: Text(r.title, style: TextStyle(color: t.ink, fontWeight: FontWeight.w900)),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              if (r.description.isNotEmpty) Text(r.description),
+              if (r.description.isNotEmpty) Text(r.description, style: TextStyle(color: t.ink)),
               const SizedBox(height: 8),
-              SelectableText(r.url, style: const TextStyle(color: Brand.primary)),
+              SelectableText(r.url, style: const TextStyle(color: Brand.purple, fontWeight: FontWeight.w700)),
             ],
           ),
           actions: [
@@ -2248,43 +2295,25 @@ class _ResourceTile extends StatelessWidget {
           ],
         ),
       ),
-      borderRadius: BorderRadius.circular(14),
       child: Container(
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: Brand.card,
-          border: Border.all(color: Brand.border),
-          borderRadius: BorderRadius.circular(14),
-        ),
+        padding: const EdgeInsets.all(14),
+        decoration: sticker(t, fill: _accent(), radius: 14, offset: const Offset(3, 3)),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: _color().withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: Icon(_icon(), color: _color(), size: 20),
+            Row(children: [
+              Icon(_icon(), color: Brand.ink, size: 26),
+              const Spacer(),
+              if (canDelete)
+                GestureDetector(
+                  onTap: () => state.deleteResource(r.id),
+                  child: const Icon(Icons.close, size: 16, color: Brand.ink),
                 ),
-                const Spacer(),
-                if (canDelete)
-                  InkWell(
-                    onTap: () => state.deleteResource(r.id),
-                    child: const Padding(
-                      padding: EdgeInsets.all(2),
-                      child: Icon(Icons.close, size: 16, color: Brand.muted),
-                    ),
-                  ),
-              ],
-            ),
+            ]),
             Text(r.title,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(fontWeight: FontWeight.w700)),
+              maxLines: 2, overflow: TextOverflow.ellipsis,
+              style: const TextStyle(fontWeight: FontWeight.w900, color: Brand.ink, fontSize: 14, letterSpacing: -0.2)),
           ],
         ),
       ),
@@ -2301,13 +2330,15 @@ class ContactsScreen extends StatelessWidget {
   const ContactsScreen({super.key, required this.state});
   @override
   Widget build(BuildContext context) {
+    final t = Tones.of(context);
     final u = state.currentUser!;
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Important contacts'),
+        title: const Text('People'),
         actions: [
           if (u.role == UserRole.admin)
             IconButton(icon: const Icon(Icons.add), onPressed: () => _editContact(context, null)),
+          ThemeToggleBtn(state: state),
         ],
       ),
       body: state.contacts.isEmpty
@@ -2315,41 +2346,62 @@ class ContactsScreen extends StatelessWidget {
           : ListView.separated(
               padding: const EdgeInsets.all(20),
               itemCount: state.contacts.length,
-              separatorBuilder: (_, __) => const SizedBox(height: 10),
+              separatorBuilder: (_, __) => const SizedBox(height: 12),
               itemBuilder: (_, i) {
                 final c = state.contacts[i];
-                return Card(
-                  child: ListTile(
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-                    leading: CircleAvatar(
-                      backgroundColor: Brand.primaryLight,
-                      child: Text(c.name.isNotEmpty ? c.name[0] : '?',
-                          style: const TextStyle(color: Brand.primary, fontWeight: FontWeight.w700)),
+                final accent = StickerPalette.accent(c.name.codeUnitAt(0));
+                return Container(
+                  decoration: sticker(t, fill: t.paper, radius: 16, offset: const Offset(3, 3)),
+                  padding: const EdgeInsets.all(14),
+                  child: Row(children: [
+                    Container(
+                      width: 48, height: 48,
+                      decoration: BoxDecoration(
+                        color: accent,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: Brand.ink, width: 2),
+                      ),
+                      child: Center(child: Text(
+                        c.name.isNotEmpty ? c.name[0].toUpperCase() : '?',
+                        style: const TextStyle(color: Brand.ink, fontWeight: FontWeight.w900, fontSize: 18))),
                     ),
-                    title: Text(c.name, style: const TextStyle(fontWeight: FontWeight.w700)),
-                    subtitle: Text('${c.title} · ${c.department}\n${c.email} · ${c.phone}',
-                        style: const TextStyle(height: 1.4)),
-                    isThreeLine: true,
-                    trailing: u.role == UserRole.admin
-                        ? PopupMenuButton<String>(
-                            onSelected: (v) {
-                              if (v == 'edit') _editContact(context, c);
-                              if (v == 'delete') state.deleteContact(c.id);
-                            },
-                            itemBuilder: (_) => const [
-                              PopupMenuItem(value: 'edit', child: Text('Edit')),
-                              PopupMenuItem(value: 'delete', child: Text('Delete')),
-                            ],
-                          )
-                        : IconButton(
-                            icon: const Icon(Icons.copy, size: 18, color: Brand.muted),
-                            onPressed: () {
-                              Clipboard.setData(ClipboardData(text: c.email));
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(content: Text('Email copied')));
-                            },
-                          ),
-                  ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(c.name,
+                            style: TextStyle(fontWeight: FontWeight.w900, color: t.ink, fontSize: 15)),
+                          Text('${c.title} · ${c.department}',
+                            style: TextStyle(color: t.mute, fontSize: 12, fontWeight: FontWeight.w700)),
+                          const SizedBox(height: 2),
+                          Text('${c.email} · ${c.phone}',
+                            style: TextStyle(color: t.ink, fontSize: 12, height: 1.4)),
+                        ],
+                      ),
+                    ),
+                    if (u.role == UserRole.admin)
+                      PopupMenuButton<String>(
+                        icon: Icon(Icons.more_vert, color: t.mute),
+                        onSelected: (v) {
+                          if (v == 'edit') _editContact(context, c);
+                          if (v == 'delete') state.deleteContact(c.id);
+                        },
+                        itemBuilder: (_) => const [
+                          PopupMenuItem(value: 'edit', child: Text('Edit')),
+                          PopupMenuItem(value: 'delete', child: Text('Delete')),
+                        ],
+                      )
+                    else
+                      IconButton(
+                        icon: Icon(Icons.copy, size: 18, color: t.mute),
+                        onPressed: () {
+                          Clipboard.setData(ClipboardData(text: c.email));
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('Email copied')));
+                        },
+                      ),
+                  ]),
                 );
               },
             ),
@@ -2365,19 +2417,19 @@ class ContactsScreen extends StatelessWidget {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
+      backgroundColor: Tones.of(context).paper,
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
       builder: (ctx) => Padding(
-        padding: EdgeInsets.only(
-          left: 20, right: 20, top: 20,
-          bottom: 20 + MediaQuery.of(ctx).viewInsets.bottom,
-        ),
+        padding: EdgeInsets.only(left: 20, right: 20, top: 20,
+          bottom: 20 + MediaQuery.of(ctx).viewInsets.bottom),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Text(existing == null ? 'New contact' : 'Edit contact',
-                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
-            const SizedBox(height: 12),
+              style: TextStyle(fontSize: 22, fontWeight: FontWeight.w900,
+                color: Tones.of(ctx).ink, letterSpacing: -0.6)),
+            const SizedBox(height: 14),
             TextField(controller: name, decoration: const InputDecoration(labelText: 'Name')),
             const SizedBox(height: 10),
             TextField(controller: title, decoration: const InputDecoration(labelText: 'Title')),
@@ -2441,19 +2493,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   @override
   void dispose() {
-    _name.dispose();
-    _bio.dispose();
-    _grade.dispose();
+    _name.dispose(); _bio.dispose(); _grade.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
+    final t = Tones.of(context);
     final u = widget.state.currentUser!;
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Profile'),
+        title: const Text('Me'),
         actions: [
+          ThemeToggleBtn(state: widget.state),
           IconButton(
             icon: const Icon(Icons.logout),
             tooltip: 'Sign out',
@@ -2464,40 +2516,67 @@ class _ProfileScreenState extends State<ProfileScreen> {
       body: ListView(
         padding: const EdgeInsets.all(20),
         children: [
-          Center(
+          Container(
+            padding: const EdgeInsets.all(20),
+            decoration: sticker(t, fill: Brand.lime, radius: 22, offset: const Offset(5, 5)),
             child: Column(
               children: [
                 Container(
-                  width: 88,
-                  height: 88,
+                  width: 96, height: 96,
                   decoration: BoxDecoration(
-                    color: Brand.primaryLight,
+                    color: Colors.white,
+                    border: Border.all(color: Brand.ink, width: 2),
                     borderRadius: BorderRadius.circular(24),
                   ),
-                  child: Center(child: Text(_avatar, style: const TextStyle(fontSize: 48))),
+                  child: Center(child: Text(_avatar, style: const TextStyle(fontSize: 56))),
                 ),
+                const SizedBox(height: 10),
+                Text(u.name,
+                  style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w900,
+                    color: Brand.ink, letterSpacing: -0.4)),
+                Text(u.email,
+                  style: const TextStyle(color: Brand.ink, fontWeight: FontWeight.w600)),
                 const SizedBox(height: 8),
                 RoleBadge(role: u.role),
-                const SizedBox(height: 4),
-                Text(u.email, style: const TextStyle(color: Brand.muted)),
               ],
             ),
           ),
-          const SizedBox(height: 16),
-          const Text('Avatar', style: TextStyle(fontWeight: FontWeight.w700)),
-          const SizedBox(height: 8),
+          const SizedBox(height: 22),
+          _settingsRow(t,
+            icon: widget.state.darkMode ? Icons.dark_mode : Icons.light_mode,
+            label: 'Dark mode',
+            trailing: Switch(
+              value: widget.state.darkMode,
+              activeThumbColor: Brand.purple,
+              onChanged: (_) => widget.state.toggleDarkMode(),
+            ),
+          ),
+          const SizedBox(height: 22),
+          Text('Avatar',
+            style: TextStyle(fontWeight: FontWeight.w900, color: t.ink, fontSize: 14, letterSpacing: -0.2)),
+          const SizedBox(height: 10),
           Wrap(
-            spacing: 8,
+            spacing: 8, runSpacing: 8,
             children: [
               for (final a in _avatars)
-                ChoiceChip(
-                  label: Text(a, style: const TextStyle(fontSize: 20)),
-                  selected: _avatar == a,
-                  onSelected: (_) => setState(() => _avatar = a),
+                GestureDetector(
+                  onTap: () => setState(() => _avatar = a),
+                  child: Container(
+                    width: 44, height: 44,
+                    decoration: BoxDecoration(
+                      color: _avatar == a ? Brand.purpleSoft : t.paper,
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(
+                        color: _avatar == a ? Brand.purple : t.line,
+                        width: _avatar == a ? 3 : 2,
+                      ),
+                    ),
+                    child: Center(child: Text(a, style: const TextStyle(fontSize: 22))),
+                  ),
                 ),
             ],
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 18),
           TextField(controller: _name, decoration: const InputDecoration(labelText: 'Display name')),
           const SizedBox(height: 10),
           TextField(controller: _grade, decoration: const InputDecoration(labelText: 'Grade')),
@@ -2524,6 +2603,20 @@ class _ProfileScreenState extends State<ProfileScreen> {
       ),
     );
   }
+
+  Widget _settingsRow(Tones t, {required IconData icon, required String label, required Widget trailing}) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+      decoration: sticker(t, fill: t.paper, radius: 14, offset: const Offset(3, 3)),
+      child: Row(children: [
+        Icon(icon, color: t.ink),
+        const SizedBox(width: 12),
+        Expanded(child: Text(label,
+          style: TextStyle(fontWeight: FontWeight.w800, color: t.ink, fontSize: 15))),
+        trailing,
+      ]),
+    );
+  }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -2541,7 +2634,12 @@ class LeadershipPostScreen extends StatelessWidget {
       child: Scaffold(
         appBar: AppBar(
           title: const Text('Create'),
+          actions: [ThemeToggleBtn(state: state)],
           bottom: const TabBar(
+            indicatorColor: Brand.purple,
+            indicatorWeight: 3,
+            labelColor: Brand.purple,
+            labelStyle: TextStyle(fontWeight: FontWeight.w900),
             tabs: [
               Tab(icon: Icon(Icons.campaign_outlined), text: 'Announce'),
               Tab(icon: Icon(Icons.image_outlined), text: 'Flyer'),
@@ -2572,8 +2670,11 @@ class _AnnouncementFormState extends State<_AnnouncementForm> {
   final _title = TextEditingController();
   final _body = TextEditingController();
   bool _pin = false;
+  int _color = 0;
+
   @override
   Widget build(BuildContext context) {
+    final t = Tones.of(context);
     final isAdmin = widget.state.currentUser!.role == UserRole.admin;
     return ListView(
       padding: const EdgeInsets.all(20),
@@ -2581,11 +2682,36 @@ class _AnnouncementFormState extends State<_AnnouncementForm> {
         TextField(controller: _title, decoration: const InputDecoration(labelText: 'Title')),
         const SizedBox(height: 10),
         TextField(controller: _body, maxLines: 6, decoration: const InputDecoration(labelText: 'Message')),
+        const SizedBox(height: 14),
+        Text('Color',
+          style: TextStyle(fontWeight: FontWeight.w900, color: t.ink, letterSpacing: -0.2)),
+        const SizedBox(height: 8),
+        Wrap(
+          spacing: 10,
+          children: [
+            for (var i = 0; i < StickerPalette.accents.length; i++)
+              GestureDetector(
+                onTap: () => setState(() => _color = i),
+                child: Container(
+                  width: 36, height: 36,
+                  decoration: BoxDecoration(
+                    color: StickerPalette.accents[i],
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(
+                      color: _color == i ? Brand.purple : t.line,
+                      width: _color == i ? 3 : 2,
+                    ),
+                  ),
+                ),
+              ),
+          ],
+        ),
         if (isAdmin) ...[
-          const SizedBox(height: 4),
+          const SizedBox(height: 8),
           SwitchListTile(
             value: _pin,
             onChanged: (v) => setState(() => _pin = v),
+            activeThumbColor: Brand.purple,
             contentPadding: EdgeInsets.zero,
             title: const Text('Pin to top'),
             subtitle: const Text('Pinned posts stay above everything else.'),
@@ -2597,11 +2723,12 @@ class _AnnouncementFormState extends State<_AnnouncementForm> {
           label: const Text('Post announcement'),
           onPressed: () {
             if (_title.text.trim().isEmpty || _body.text.trim().isEmpty) return;
-            widget.state.postAnnouncement(_title.text.trim(), _body.text.trim(), pinned: _pin);
+            widget.state.postAnnouncement(_title.text.trim(), _body.text.trim(),
+              pinned: _pin, colorSeed: _color);
             _title.clear();
             _body.clear();
-            setState(() => _pin = false);
-            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Posted!')));
+            setState(() { _pin = false; _color = 0; });
+            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('🎉 Posted!')));
           },
         ),
       ],
@@ -2622,8 +2749,10 @@ class _FlyerFormState extends State<_FlyerForm> {
   String _emoji = '📣';
   int _color = 0;
   static const _emojis = ['📣','🎉','🏈','🎭','🎨','🩸','🍕','📚','🏆','🎤'];
+
   @override
   Widget build(BuildContext context) {
+    final t = Tones.of(context);
     return ListView(
       padding: const EdgeInsets.all(20),
       children: [
@@ -2631,21 +2760,31 @@ class _FlyerFormState extends State<_FlyerForm> {
         const SizedBox(height: 10),
         TextField(controller: _desc, maxLines: 4, decoration: const InputDecoration(labelText: 'Description')),
         const SizedBox(height: 14),
-        const Text('Icon', style: TextStyle(fontWeight: FontWeight.w700)),
+        Text('Icon', style: TextStyle(fontWeight: FontWeight.w900, color: t.ink, letterSpacing: -0.2)),
         const SizedBox(height: 8),
         Wrap(
           spacing: 8,
           children: [
             for (final e in _emojis)
-              ChoiceChip(
-                label: Text(e, style: const TextStyle(fontSize: 22)),
-                selected: _emoji == e,
-                onSelected: (_) => setState(() => _emoji = e),
+              GestureDetector(
+                onTap: () => setState(() => _emoji = e),
+                child: Container(
+                  width: 44, height: 44,
+                  decoration: BoxDecoration(
+                    color: _emoji == e ? Brand.purpleSoft : t.paper,
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(
+                      color: _emoji == e ? Brand.purple : t.line,
+                      width: _emoji == e ? 3 : 2,
+                    ),
+                  ),
+                  child: Center(child: Text(e, style: const TextStyle(fontSize: 22))),
+                ),
               ),
           ],
         ),
         const SizedBox(height: 14),
-        const Text('Color', style: TextStyle(fontWeight: FontWeight.w700)),
+        Text('Color', style: TextStyle(fontWeight: FontWeight.w900, color: t.ink, letterSpacing: -0.2)),
         const SizedBox(height: 8),
         Wrap(
           spacing: 8,
@@ -2654,14 +2793,13 @@ class _FlyerFormState extends State<_FlyerForm> {
               GestureDetector(
                 onTap: () => setState(() => _color = i),
                 child: Container(
-                  width: 36,
-                  height: 36,
+                  width: 38, height: 38,
                   decoration: BoxDecoration(
                     gradient: LinearGradient(colors: _FlyerCard._palette[i]),
                     borderRadius: BorderRadius.circular(10),
                     border: Border.all(
-                      color: _color == i ? Brand.primary : Colors.transparent,
-                      width: 2,
+                      color: _color == i ? Brand.purple : t.line,
+                      width: _color == i ? 3 : 2,
                     ),
                   ),
                 ),
@@ -2677,7 +2815,7 @@ class _FlyerFormState extends State<_FlyerForm> {
             widget.state.postFlyer(_title.text.trim(), _desc.text.trim(), _emoji, _color);
             _title.clear();
             _desc.clear();
-            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Flyer posted!')));
+            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('📄 Flyer posted!')));
           },
         ),
       ],
@@ -2698,6 +2836,7 @@ class _ResourceFormState extends State<_ResourceForm> {
   final _desc = TextEditingController();
   String _category = 'Classroom';
   static const _cats = ['Classroom', 'Clever', 'Library', 'Sports', 'Other'];
+
   @override
   Widget build(BuildContext context) {
     return ListView(
@@ -2725,7 +2864,7 @@ class _ResourceFormState extends State<_ResourceForm> {
             _title.clear();
             _url.clear();
             _desc.clear();
-            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Resource posted!')));
+            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('🔗 Resource posted!')));
           },
         ),
       ],
@@ -2747,10 +2886,15 @@ class AdminDashboard extends StatelessWidget {
       child: Scaffold(
         appBar: AppBar(
           title: const Text('Admin'),
+          actions: [ThemeToggleBtn(state: state)],
           bottom: const TabBar(
+            indicatorColor: Brand.purple,
+            indicatorWeight: 3,
+            labelColor: Brand.purple,
+            labelStyle: TextStyle(fontWeight: FontWeight.w900),
             tabs: [
               Tab(icon: Icon(Icons.people_outline), text: 'Users'),
-              Tab(icon: Icon(Icons.insights_outlined), text: 'Overview'),
+              Tab(icon: Icon(Icons.insights_outlined), text: 'Stats'),
               Tab(icon: Icon(Icons.history), text: 'Audit'),
             ],
           ),
@@ -2778,12 +2922,12 @@ class _UsersTabState extends State<_UsersTab> {
   String _filter = '';
   @override
   Widget build(BuildContext context) {
+    final t = Tones.of(context);
     final me = widget.state.currentUser!;
     final list = widget.state.users
-        .where((u) =>
-            _filter.isEmpty ||
-            u.name.toLowerCase().contains(_filter.toLowerCase()) ||
-            u.email.toLowerCase().contains(_filter.toLowerCase()))
+        .where((u) => _filter.isEmpty
+            || u.name.toLowerCase().contains(_filter.toLowerCase())
+            || u.email.toLowerCase().contains(_filter.toLowerCase()))
         .toList();
     return Column(
       children: [
@@ -2801,73 +2945,90 @@ class _UsersTabState extends State<_UsersTab> {
           child: ListView.separated(
             padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
             itemCount: list.length,
-            separatorBuilder: (_, __) => const SizedBox(height: 8),
+            separatorBuilder: (_, __) => const SizedBox(height: 10),
             itemBuilder: (_, i) {
               final u = list[i];
-              return Card(
-                child: ListTile(
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-                  leading: CircleAvatar(
-                    backgroundColor: Brand.roleColor(u.role).withValues(alpha: 0.15),
-                    child: Text(u.avatarEmoji, style: const TextStyle(fontSize: 18)),
+              return Container(
+                decoration: sticker(t, fill: t.paper, radius: 14, offset: const Offset(3, 3)),
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                child: Row(children: [
+                  Container(
+                    width: 44, height: 44,
+                    decoration: BoxDecoration(
+                      color: Brand.roleColor(u.role),
+                      border: Border.all(color: Brand.ink, width: 2),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Center(child: Text(u.avatarEmoji, style: const TextStyle(fontSize: 20))),
                   ),
-                  title: Row(
-                    children: [
-                      Expanded(
-                        child: Text(u.name,
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(children: [
+                          Expanded(child: Text(u.name,
                             style: TextStyle(
-                              fontWeight: FontWeight.w700,
+                              fontWeight: FontWeight.w900,
                               decoration: u.disabled ? TextDecoration.lineThrough : null,
-                              color: u.disabled ? Brand.muted : Brand.text,
-                            )),
-                      ),
-                      RoleBadge(role: u.role),
-                    ],
+                              color: u.disabled ? t.mute : t.ink,
+                              fontSize: 14,
+                            ))),
+                          RoleBadge(role: u.role, dense: true),
+                        ]),
+                        Text('${u.email}${u.grade.isEmpty ? '' : ' · Grade ${u.grade}'}',
+                          style: TextStyle(color: t.mute, fontSize: 12, fontWeight: FontWeight.w600)),
+                      ],
+                    ),
                   ),
-                  subtitle: Text('${u.email}${u.grade.isEmpty ? '' : ' · Grade ${u.grade}'}'),
-                  trailing: u.id == me.id
-                      ? const Chip(
-                          label: Text('You'),
-                          backgroundColor: Brand.primaryLight,
-                          labelStyle: TextStyle(color: Brand.primary, fontWeight: FontWeight.w700),
-                        )
-                      : PopupMenuButton<String>(
-                          onSelected: (v) {
-                            if (v == 'disable') widget.state.setUserDisabled(u.id, !u.disabled);
-                            if (v == 'student') widget.state.setUserRole(u.id, UserRole.student);
-                            if (v == 'leadership') widget.state.setUserRole(u.id, UserRole.leadership);
-                            if (v == 'admin') widget.state.setUserRole(u.id, UserRole.admin);
-                            if (v == 'delete') {
-                              showDialog(
-                                context: context,
-                                builder: (_) => AlertDialog(
-                                  title: const Text('Delete user?'),
-                                  content: Text('This permanently removes ${u.name}.'),
-                                  actions: [
-                                    TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
-                                    TextButton(
-                                      onPressed: () {
-                                        widget.state.deleteUser(u.id);
-                                        Navigator.pop(context);
-                                      },
-                                      child: const Text('Delete', style: TextStyle(color: Brand.danger)),
-                                    ),
-                                  ],
+                  if (u.id == me.id)
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: Brand.purpleSoft,
+                        borderRadius: BorderRadius.circular(6),
+                        border: Border.all(color: Brand.ink, width: 1.5),
+                      ),
+                      child: const Text('YOU',
+                        style: TextStyle(color: Brand.ink, fontWeight: FontWeight.w900, fontSize: 10)),
+                    )
+                  else
+                    PopupMenuButton<String>(
+                      icon: Icon(Icons.more_vert, color: t.mute),
+                      onSelected: (v) {
+                        if (v == 'disable') widget.state.setUserDisabled(u.id, !u.disabled);
+                        if (v == 'student') widget.state.setUserRole(u.id, UserRole.student);
+                        if (v == 'leadership') widget.state.setUserRole(u.id, UserRole.leadership);
+                        if (v == 'admin') widget.state.setUserRole(u.id, UserRole.admin);
+                        if (v == 'delete') {
+                          showDialog(
+                            context: context,
+                            builder: (_) => AlertDialog(
+                              backgroundColor: t.paper,
+                              title: const Text('Delete user?'),
+                              content: Text('This permanently removes ${u.name}.'),
+                              actions: [
+                                TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+                                TextButton(
+                                  onPressed: () { widget.state.deleteUser(u.id); Navigator.pop(context); },
+                                  child: const Text('Delete', style: TextStyle(color: Brand.danger)),
                                 ),
-                              );
-                            }
-                          },
-                          itemBuilder: (_) => [
-                            PopupMenuItem(value: 'disable', child: Text(u.disabled ? 'Re-enable access' : 'Disable access')),
-                            const PopupMenuDivider(),
-                            const PopupMenuItem(value: 'student', child: Text('Set role: Student')),
-                            const PopupMenuItem(value: 'leadership', child: Text('Set role: Leadership')),
-                            const PopupMenuItem(value: 'admin', child: Text('Set role: Admin')),
-                            const PopupMenuDivider(),
-                            const PopupMenuItem(value: 'delete', child: Text('Delete user')),
-                          ],
-                        ),
-                ),
+                              ],
+                            ),
+                          );
+                        }
+                      },
+                      itemBuilder: (_) => [
+                        PopupMenuItem(value: 'disable', child: Text(u.disabled ? 'Re-enable access' : 'Disable access')),
+                        const PopupMenuDivider(),
+                        const PopupMenuItem(value: 'student', child: Text('Set role: Student')),
+                        const PopupMenuItem(value: 'leadership', child: Text('Set role: Leadership')),
+                        const PopupMenuItem(value: 'admin', child: Text('Set role: Admin')),
+                        const PopupMenuDivider(),
+                        const PopupMenuItem(value: 'delete', child: Text('Delete user')),
+                      ],
+                    ),
+                ]),
               );
             },
           ),
@@ -2880,67 +3041,72 @@ class _UsersTabState extends State<_UsersTab> {
 class _OverviewTab extends StatelessWidget {
   final AppState state;
   const _OverviewTab({required this.state});
+
   @override
   Widget build(BuildContext context) {
+    final t = Tones.of(context);
     final totalUsers = state.users.length;
     final students = state.users.where((u) => u.role == UserRole.student).length;
     final leaders = state.users.where((u) => u.role == UserRole.leadership).length;
     final admins = state.users.where((u) => u.role == UserRole.admin).length;
     final disabled = state.users.where((u) => u.disabled).length;
-    final revenue = state.tickets.fold<double>(0, (sum, t) {
-      final e = state.events.cast<Event?>().firstWhere((ev) => ev!.id == t.eventId, orElse: () => null);
+    final revenue = state.tickets.fold<double>(0, (sum, tk) {
+      final e = state.events.cast<Event?>().firstWhere((ev) => ev!.id == tk.eventId, orElse: () => null);
       return sum + (e?.ticketPrice ?? 0);
     });
 
-    Widget stat(String label, String value, IconData icon, Color color) => Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(color: color.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(10)),
-              child: Icon(icon, color: color),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(label, style: const TextStyle(color: Brand.muted, fontSize: 12)),
-                  Text(value, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800)),
-                ],
-              ),
-            ),
-          ],
+    Widget stat(String label, String value, IconData icon, Color color) => Container(
+      decoration: sticker(t, fill: color, radius: 14, offset: const Offset(3, 3)),
+      padding: const EdgeInsets.all(14),
+      child: Row(children: [
+        Container(
+          padding: const EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            color: Colors.white.withValues(alpha: 0.5),
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: Brand.ink, width: 1.5),
+          ),
+          child: Icon(icon, color: Brand.ink, size: 20),
         ),
-      ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(label,
+                style: const TextStyle(color: Brand.ink, fontSize: 11, fontWeight: FontWeight.w800, letterSpacing: 0.5)),
+              Text(value,
+                style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w900, color: Brand.ink, letterSpacing: -0.6)),
+            ],
+          ),
+        ),
+      ]),
     );
 
     return ListView(
       padding: const EdgeInsets.all(20),
       children: [
-        stat('Total users', '$totalUsers', Icons.people, Brand.primary),
+        stat('TOTAL USERS', '$totalUsers', Icons.people, Brand.purpleSoft),
         const SizedBox(height: 10),
         Row(children: [
-          Expanded(child: stat('Students', '$students', Icons.school, Brand.primary)),
+          Expanded(child: stat('STUDENTS', '$students', Icons.school, Brand.skySoft)),
           const SizedBox(width: 10),
-          Expanded(child: stat('Leaders', '$leaders', Icons.star, Brand.accent)),
+          Expanded(child: stat('LEADERS', '$leaders', Icons.star, Brand.sunSoft)),
         ]),
         const SizedBox(height: 10),
         Row(children: [
-          Expanded(child: stat('Admins', '$admins', Icons.shield, Brand.danger)),
+          Expanded(child: stat('ADMINS', '$admins', Icons.shield, Brand.coralSoft)),
           const SizedBox(width: 10),
-          Expanded(child: stat('Disabled', '$disabled', Icons.block, Brand.muted)),
+          Expanded(child: stat('DISABLED', '$disabled', Icons.block, t.lineSoft)),
         ]),
         const SizedBox(height: 10),
-        stat('Announcements', '${state.announcements.length}', Icons.campaign, Brand.primary),
+        stat('ANNOUNCEMENTS', '${state.announcements.length}', Icons.campaign, Brand.pinkSoft),
         const SizedBox(height: 10),
-        stat('Events', '${state.events.length}', Icons.event, Brand.accent),
+        stat('EVENTS', '${state.events.length}', Icons.event, Brand.mintSoft),
         const SizedBox(height: 10),
-        stat('Tickets sold', '${state.tickets.length}', Icons.confirmation_num, Brand.success),
+        stat('TICKETS SOLD', '${state.tickets.length}', Icons.confirmation_num, Brand.lime),
         const SizedBox(height: 10),
-        stat('Ticket revenue', '\$${revenue.toStringAsFixed(2)}', Icons.attach_money, Brand.success),
+        stat('REVENUE', '\$${revenue.toStringAsFixed(2)}', Icons.attach_money, Brand.mint),
       ],
     );
   }
@@ -2951,21 +3117,30 @@ class _AuditTab extends StatelessWidget {
   const _AuditTab({required this.state});
   @override
   Widget build(BuildContext context) {
+    final t = Tones.of(context);
     if (state.audit.isEmpty) {
       return const EmptyState(emoji: '📜', title: 'No activity yet', message: 'User actions show up here.');
     }
     return ListView.separated(
       padding: const EdgeInsets.all(16),
       itemCount: state.audit.length,
-      separatorBuilder: (_, __) => const Divider(height: 1, color: Brand.border),
+      separatorBuilder: (_, __) => Divider(height: 1, color: t.lineSoft),
       itemBuilder: (_, i) {
         final a = state.audit[i];
         return ListTile(
           dense: true,
-          leading: const Icon(Icons.circle, size: 8, color: Brand.muted),
-          title: Text(a.action, style: const TextStyle(fontWeight: FontWeight.w600)),
+          leading: Container(
+            width: 10, height: 10,
+            decoration: BoxDecoration(
+              color: Brand.purple,
+              borderRadius: BorderRadius.circular(2),
+              border: Border.all(color: Brand.ink, width: 1),
+            ),
+          ),
+          title: Text(a.action,
+            style: TextStyle(fontWeight: FontWeight.w800, color: t.ink, fontSize: 14)),
           subtitle: Text('${a.actorName} · ${_timeAgo(a.timestamp)}',
-              style: const TextStyle(color: Brand.muted, fontSize: 12)),
+            style: TextStyle(color: t.mute, fontSize: 12, fontWeight: FontWeight.w600)),
         );
       },
     );
