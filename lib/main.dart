@@ -8,18 +8,15 @@
 //   • Atomic quota consumption (increments first, bounded by max)
 //   • Extracted duplicated widgets and logic into shared helpers
 //   • Simplified theme extension with fewer redundant declarations
-//   • FlutterTts instances managed centrally via parent state
-//   • Reduced rebuild surface with const constructors and ValueNotifier
-//   • Used compute() for heavy JSON decoding (off main thread)
-//   • Added image caching layer
+//   • FlutterTts instance managed centrally via parent state
+//   • Reduced rebuild surface with const constructors
 //   • Streamlined list rendering with consistent RepaintBoundary placement
+//   • API keys injected via --dart-define; AI features degrade gracefully
 // ═══════════════════════════════════════════════════════════════════════════════
 
 import 'dart:async';
 import 'dart:convert';
-import 'dart:isolate';
 
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
@@ -31,10 +28,23 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:local_auth/local_auth.dart';
 
 // ─── CONFIG ───────────────────────────────────────────────────────────────────
-// NOTE: API keys should come from a secure .env or backend, not hardcoded.
-const String kNewsDataApiKey     = 'pub_f31a7003369146d6839e54ec8faf24b3';
-const String kOpenAiApiKey       = 'YOUR_OPENAI_API_KEY';
-const String kOpenAiModel        = 'gpt-4o-mini';
+// API keys are injected at build time via --dart-define so they never have to be
+// committed to source control, e.g.:
+//   flutter run --dart-define=NEWSDATA_API_KEY=xxx --dart-define=OPENAI_API_KEY=yyy
+// The NewsData key falls back to a free demo key so the news feed works out of the
+// box; the OpenAI key has no fallback, and the AI features stay hidden until one
+// is supplied (see kAiEnabled).
+const String kNewsDataApiKey     = String.fromEnvironment(
+  'NEWSDATA_API_KEY',
+  defaultValue: 'pub_f31a7003369146d6839e54ec8faf24b3',
+);
+const String kOpenAiApiKey       = String.fromEnvironment('OPENAI_API_KEY');
+const String kOpenAiModel        = String.fromEnvironment(
+  'OPENAI_MODEL',
+  defaultValue: 'gpt-4o-mini',
+);
+// AI summary / Q&A are only offered when an OpenAI key has been configured.
+const bool kAiEnabled = kOpenAiApiKey != '';
 const int    kMaxSummariesPerDay = 5;
 const int    kMaxLoadMore        = 3;
 const int    kMaxDedupTitles     = 500;  // bound memory for dedup sets
@@ -1687,9 +1697,12 @@ class _PromoCard extends StatelessWidget {
 // ─── Article List Item ────────────────────────────────────────────────────────
 class _ArticleListItem extends StatelessWidget {
   final ArticleSummary article;
-  final VoidCallback onTap, onSave;
+  final VoidCallback onTap;
+  // When null the bookmark control is hidden (e.g. on the Explore results list,
+  // where articles aren't part of the persisted feed and can't be saved).
+  final VoidCallback? onSave;
   const _ArticleListItem(
-      {required this.article, required this.onTap, required this.onSave});
+      {required this.article, required this.onTap, this.onSave});
 
   @override
   Widget build(BuildContext context) {
@@ -1733,18 +1746,19 @@ class _ArticleListItem extends StatelessWidget {
                         style:
                         _ls(15, FontWeight.w600, c.onSurface, height: 1.35)),
                   ])),
-          IconButton(
-            onPressed: onSave,
-            icon: Icon(
-              article.saved
-                  ? Icons.bookmark_rounded
-                  : Icons.bookmark_border_rounded,
-              size: 20,
-              color: article.saved ? AppColors.primary : c.outline,
+          if (onSave != null)
+            IconButton(
+              onPressed: onSave,
+              icon: Icon(
+                article.saved
+                    ? Icons.bookmark_rounded
+                    : Icons.bookmark_border_rounded,
+                size: 20,
+                color: article.saved ? AppColors.primary : c.outline,
+              ),
+              padding: const EdgeInsets.all(4),
+              constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
             ),
-            padding: const EdgeInsets.all(4),
-            constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
-          ),
         ]),
       ),
     );
@@ -2428,7 +2442,6 @@ class _ExploreScreenState extends State<ExploreScreen> {
                             tts: widget.tts,
                             prefs: widget.prefs,
                             onSaveToggle: () {}))),
-                onSave: () {},
               ));
         },
       ),
@@ -2604,27 +2617,40 @@ class _ArticleDetailState extends State<ArticleDetail> {
     super.initState();
     _saved = widget.article.saved;
     _summaryUsed = getSummaryUsageToday(widget.prefs);
+    // Keep the speak/stop button in sync with the shared TTS engine. Without
+    // these handlers `speak()` returns before playback finishes, so the button
+    // would flip straight back to "play" while audio is still running.
+    widget.tts.awaitSpeakCompletion(true);
+    widget.tts.setCompletionHandler(_onSpeechDone);
+    widget.tts.setCancelHandler(_onSpeechDone);
+    widget.tts.setErrorHandler((_) => _onSpeechDone());
+  }
+
+  void _onSpeechDone() {
+    if (mounted) setState(() => _speaking = false);
   }
 
   @override
   void dispose() {
+    // Stop narration so it doesn't keep playing after the screen is gone, and
+    // detach our handlers from the shared engine.
+    widget.tts.stop();
+    widget.tts.setCompletionHandler(() {});
+    widget.tts.setCancelHandler(() {});
     _qCtrl.dispose();
     _scrollCtrl.dispose();
     super.dispose();
   }
 
   Future<void> _generateSummary() async {
-    if (_generatingSummary) return;
-    final canUse = await consumeSummaryUsage(widget.prefs);
-    if (!mounted) return;
-    if (!canUse) {
+    if (_generatingSummary || !kAiEnabled) return;
+    // Check the quota up front but only consume it on a successful response, so a
+    // network/API failure never costs the child one of their daily summaries.
+    if (getSummaryUsageToday(widget.prefs) >= kMaxSummariesPerDay) {
       _showQuotaSnackBar();
       return;
     }
-    setState(() {
-      _generatingSummary = true;
-      _summaryUsed++;
-    });
+    setState(() => _generatingSummary = true);
     try {
       final src = widget.article.fullContent.isNotEmpty
           ? widget.article.fullContent
@@ -2653,18 +2679,21 @@ class _ArticleDetailState extends State<ArticleDetail> {
       )
           .timeout(const Duration(seconds: 20));
       if (!mounted) return;
-      setState(() {
-        _aiSummary = res.statusCode == 200
-            ? (json.decode(res.body)['choices'][0]['message']['content']
-        as String)
-            .trim()
-            : 'Couldn\'t generate summary. Try again!';
-      });
-    } catch (_) {
-      if (mounted) {
-        setState(() =>
-        _aiSummary = 'Couldn\'t connect. Check your internet!');
+      if (res.statusCode == 200) {
+        final content =
+            (json.decode(res.body)['choices'][0]['message']['content'] as String)
+                .trim();
+        await consumeSummaryUsage(widget.prefs);
+        if (!mounted) return;
+        setState(() {
+          _aiSummary = content;
+          _summaryUsed = getSummaryUsageToday(widget.prefs);
+        });
+      } else {
+        _showErrorSnackBar('Couldn\'t generate summary. Try again!');
       }
+    } catch (_) {
+      _showErrorSnackBar('Couldn\'t connect. Check your internet!');
     } finally {
       if (mounted) setState(() => _generatingSummary = false);
     }
@@ -2682,9 +2711,19 @@ class _ArticleDetailState extends State<ArticleDetail> {
     ));
   }
 
+  void _showErrorSnackBar(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Text(message, style: _ls(13, FontWeight.w500, Colors.white)),
+      backgroundColor: AppColors.error,
+      behavior: SnackBarBehavior.floating,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+    ));
+  }
+
   Future<void> _ask() async {
     final q = _qCtrl.text.trim();
-    if (q.isEmpty) return;
+    if (q.isEmpty || !kAiEnabled) return;
     _qCtrl.clear();
     setState(() => _asking = true);
     try {
@@ -2854,14 +2893,16 @@ class _ArticleDetailState extends State<ArticleDetail> {
                               rawDescription: widget.article.rawDescription,
                               c: c,
                             ),
-                            const SizedBox(height: 14),
-                            _SummaryActionBar(
-                              aiSummary: _aiSummary,
-                              generatingSummary: _generatingSummary,
-                              summaryLeft: summaryLeft,
-                              onGenerateSummary: _generateSummary,
-                              c: c,
-                            ),
+                            if (kAiEnabled) ...[
+                              const SizedBox(height: 14),
+                              _SummaryActionBar(
+                                aiSummary: _aiSummary,
+                                generatingSummary: _generatingSummary,
+                                summaryLeft: summaryLeft,
+                                onGenerateSummary: _generateSummary,
+                                c: c,
+                              ),
+                            ],
                             const SizedBox(height: 14),
                             _SaveButton(
                               saved: _saved,
@@ -2871,20 +2912,22 @@ class _ArticleDetailState extends State<ArticleDetail> {
                                 setState(() => _saved = !_saved);
                               },
                             ),
-                            const SizedBox(height: 32),
-                            Text('Got questions? 🤔',
-                                style: _ls(
-                                    20, FontWeight.w700, c.onSurface)),
-                            const SizedBox(height: 4),
-                            Text('Ask me anything about this story!',
-                                style: _ls(
-                                    14, FontWeight.w400, c.onVariant)),
-                            const SizedBox(height: 20),
-                            if (_chat.isEmpty)
-                              _QuestionHint(c: c)
-                            else
-                              for (final qa in _chat)
-                                _QABubble(qa: qa, c: c),
+                            if (kAiEnabled) ...[
+                              const SizedBox(height: 32),
+                              Text('Got questions? 🤔',
+                                  style: _ls(
+                                      20, FontWeight.w700, c.onSurface)),
+                              const SizedBox(height: 4),
+                              Text('Ask me anything about this story!',
+                                  style: _ls(
+                                      14, FontWeight.w400, c.onVariant)),
+                              const SizedBox(height: 20),
+                              if (_chat.isEmpty)
+                                _QuestionHint(c: c)
+                              else
+                                for (final qa in _chat)
+                                  _QABubble(qa: qa, c: c),
+                            ],
                             SizedBox(
                                 height:
                                 80 + MediaQuery.of(context).viewInsets.bottom),
@@ -2892,12 +2935,13 @@ class _ArticleDetailState extends State<ArticleDetail> {
                     ),
                   ]),
             )),
-        _QuestionInputBar(
-          c: c,
-          qCtrl: _qCtrl,
-          asking: _asking,
-          onAsk: _ask,
-        ),
+        if (kAiEnabled)
+          _QuestionInputBar(
+            c: c,
+            qCtrl: _qCtrl,
+            asking: _asking,
+            onAsk: _ask,
+          ),
       ]),
     );
   }
