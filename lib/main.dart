@@ -274,6 +274,26 @@ bool isDuplicateTitle(String incoming, Set<String> existing) {
   return false;
 }
 
+// NewsData's free plan rejects any `q` longer than 100 characters (operators and
+// spaces included). Trim an "a OR b OR c" query to whole terms that fit the cap so
+// the request never fails for being too long.
+const int kMaxQueryLen = 95;
+String capQuery(String q) {
+  if (q.length <= kMaxQueryLen) return q;
+  final terms = q.split(' OR ');
+  final parts = <String>[];
+  var len = 0;
+  for (final t in terms) {
+    final addition = parts.isEmpty ? t.length : t.length + 4; // 4 = ' OR '
+    if (len + addition > kMaxQueryLen) break;
+    parts.add(t);
+    len += addition;
+  }
+  // Guard against a single first term that already exceeds the cap.
+  return parts.isEmpty ? q.substring(0, kMaxQueryLen) : parts.join(' OR ');
+}
+
+
 ArticleSummary articleFromRaw(Map<String, dynamic> a, List<String> selectedCategories) {
   final body = (a['content'] as String? ?? '').isNotEmpty
       ? a['content']! as String
@@ -1060,7 +1080,7 @@ class _HomeScreenState extends State<HomeScreen> {
     if (cats.length == 1) {
       final cq = kCatQueryMap[cats.first];
       if (cq == null) return (q: null, apiCat: null);
-      return (q: cq.q, apiCat: cq.apiCat);
+      return (q: capQuery(cq.q), apiCat: cq.apiCat);
     }
     final keywords = <String>{};
     String? apiCat;
@@ -1073,17 +1093,9 @@ class _HomeScreenState extends State<HomeScreen> {
         apiCat ??= cq.apiCat;
       }
     }
-    const maxLen = 120;
-    final parts = <String>[];
-    var len = 0;
-    for (final kw in keywords) {
-      final addition = parts.isEmpty ? kw : ' OR $kw';
-      if (len + addition.length > maxLen) break;
-      parts.add(kw);
-      len += addition.length;
-    }
+    final joined = keywords.join(' OR ');
     return (
-    q: parts.isNotEmpty ? parts.join(' OR ') : null,
+    q: joined.isNotEmpty ? capQuery(joined) : null,
     apiCat: apiCat,
     );
   }
@@ -1105,25 +1117,59 @@ class _HomeScreenState extends State<HomeScreen> {
         .timeout(const Duration(seconds: 20));
     if (res.statusCode != 200) throw Exception('HTTP ${res.statusCode}');
     final data = json.decode(res.body) as Map<String, dynamic>;
-    if (data['status'] != 'success') throw Exception('API error');
+    if (data['status'] != 'success') {
+      final results = data['results'];
+      final msg = results is Map ? results['message'] : data['message'];
+      throw Exception('API error${msg != null ? ': $msg' : ''}');
+    }
     _nextPage = data['nextPage']?.toString();
 
-    final allSeenUrls = {...widget.seenUrls, ..._localSeenUrls};
-    final batchTitles = Set<String>.from(_localSeenTitles);
-    final batchImages = Set<String>.from(_localUsedImages);
+    final results =
+        (data['results'] as List?)?.cast<Map<String, dynamic>>() ??
+            <Map<String, dynamic>>[];
 
-    final result = <Map<String, dynamic>>[];
-    for (final raw in data['results'] as List) {
-      final a = raw as Map<String, dynamic>;
-      final url = a['link']?.toString() ?? '';
+    // Keep only items we can actually render (real title + some body text).
+    final valid = results.where((a) {
       final title = a['title']?.toString() ?? '';
+      if (title.isEmpty || title == '[Removed]') return false;
+      return a['content'] != null || a['description'] != null;
+    }).toList();
+
+    final allSeenUrls = {...widget.seenUrls, ..._localSeenUrls};
+    bool unseen(Map<String, dynamic> a) {
+      final url = a['link']?.toString() ?? '';
+      return url.isEmpty || !allSeenUrls.contains(url);
+    }
+
+    // Progressively relax the filters so a successful response always produces
+    // stories. Without this, strict relevance/dedup can empty the list and the
+    // caller would mistakenly report a connection problem.
+    List<Map<String, dynamic>> pick({
+      required bool requireRelevant,
+      required bool requireUnseen,
+    }) {
+      final titles = requireUnseen ? Set<String>.from(_localSeenTitles) : <String>{};
+      final out = <Map<String, dynamic>>[];
+      for (final a in valid) {
+        final title = a['title']!.toString();
+        if (requireUnseen && !unseen(a)) continue;
+        if (isDuplicateTitle(title, titles)) continue;
+        if (requireRelevant && !isRelevant(a, widget.selectedCategories)) continue;
+        titles.add(normalizeTitle(title));
+        out.add(a);
+      }
+      return out;
+    }
+
+    var chosen = pick(requireRelevant: true, requireUnseen: true);
+    if (chosen.isEmpty) chosen = pick(requireRelevant: false, requireUnseen: true);
+    if (chosen.isEmpty) chosen = pick(requireRelevant: false, requireUnseen: false);
+
+    // Null out repeated images so the same picture isn't shown twice.
+    final batchImages = Set<String>.from(_localUsedImages);
+    final result = <Map<String, dynamic>>[];
+    for (final a in chosen) {
       final img = a['image_url']?.toString() ?? '';
-      if (title.isEmpty || title == '[Removed]') continue;
-      if (a['content'] == null && a['description'] == null) continue;
-      if (url.isNotEmpty && allSeenUrls.contains(url)) continue;
-      if (isDuplicateTitle(title, batchTitles)) continue;
-      if (!isRelevant(a, widget.selectedCategories)) continue;
-      batchTitles.add(normalizeTitle(title));
       if (img.isNotEmpty && batchImages.contains(img)) {
         result.add(Map<String, dynamic>.from(a)..['image_url'] = null);
       } else {
@@ -1143,7 +1189,12 @@ class _HomeScreenState extends State<HomeScreen> {
     });
     try {
       final raw = await _fetchRaw(size: 10);
-      if (raw.isEmpty) throw Exception('No articles found');
+      if (!mounted) return;
+      if (raw.isEmpty) {
+        setState(() =>
+        _error = 'No new stories right now. Please try again soon! 📰');
+        return;
+      }
       final summaries = raw
           .map((a) => articleFromRaw(a, widget.selectedCategories))
           .toList();
@@ -2298,12 +2349,13 @@ class _ExploreScreenState extends State<ExploreScreen> {
 
     try {
       final tokens = _tokenise(q);
-      final expandedQ = _expandQuery(q, tokens);
+      final expandedQ = capQuery(_expandQuery(q, tokens));
       final params = {
         'apikey': kNewsDataApiKey,
         'language': 'en',
         'q': expandedQ,
-        'size': '20',
+        // Free plan caps `size` at 10; requesting more makes the API reject it.
+        'size': '10',
       };
       final res = await http
           .get(Uri.https('newsdata.io', '/api/1/latest', params))
